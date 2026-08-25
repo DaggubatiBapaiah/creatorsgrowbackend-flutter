@@ -7,4 +7,5 @@ module.exports = {
   clearMocks: true,
   resetMocks: true,
   restoreMocks: true,
+  transformIgnorePatterns: ['node_modules/(?!pg-boss)/'],
 };

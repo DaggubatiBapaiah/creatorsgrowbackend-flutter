@@ -62,7 +62,12 @@ export class MetaPublisher implements SocialPublisher {
       const containerData = await containerRes.json();
       
       if (!containerRes.ok) {
-        return { success: false, error: `Meta API Error: ${containerData.error?.message}` };
+        const errorType = containerData.error?.type || '';
+        const errorMessage = containerData.error?.message || 'Unknown Meta API error';
+        if (errorType === 'OAuthException') {
+          return { success: false, error: `OAuthException: ${errorMessage}` };
+        }
+        return { success: false, error: `Meta API Error: ${errorMessage}` };
       }
       
       const creationId = containerData.id;
@@ -76,7 +81,12 @@ export class MetaPublisher implements SocialPublisher {
       const publishData = await publishRes.json();
       
       if (!publishRes.ok) {
-        return { success: false, error: `Meta API Publish Error: ${publishData.error?.message}` };
+        const errorType = publishData.error?.type || '';
+        const errorMessage = publishData.error?.message || 'Unknown Meta Publish error';
+        if (errorType === 'OAuthException') {
+          return { success: false, error: `OAuthException: ${errorMessage}` };
+        }
+        return { success: false, error: `Meta API Publish Error: ${errorMessage}` };
       }
 
       return { success: true, externalPostId: publishData.id };

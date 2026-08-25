@@ -7,6 +7,7 @@ import healthRouter from './routes/health.routes';
 import socialRouter from './routes/social.routes';
 import { contentRouter } from './routes/content.routes';
 import { mediaRouter } from './routes/media.routes';
+import analyticsRouter from './routes/analytics.routes';
 import path from 'path';
 import { errorHandler } from './middleware/error.middleware';
 
@@ -26,6 +27,7 @@ app.use('/api/v1/auth', authRouter);
 app.use('/api/v1/social', socialRouter);
 app.use('/api/v1/content', contentRouter);
 app.use('/api/v1/media', mediaRouter);
+app.use('/api/v1/analytics', analyticsRouter);
 
 app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 

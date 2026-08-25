@@ -73,6 +73,12 @@ export class ContentRepository {
     return (rowCount ?? 0) > 0;
   }
 
+  async getPostByIdInternal(id: string): Promise<ScheduledPost | null> {
+    const query = `SELECT * FROM content_posts WHERE id = $1`;
+    const { rows } = await pool.query(query, [id]);
+    return rows[0] || null;
+  }
+
   async getDuePosts(): Promise<ScheduledPost[]> {
     const query = `
       SELECT * FROM content_posts 
@@ -82,13 +88,19 @@ export class ContentRepository {
     return rows;
   }
 
-  async markPublishing(id: string): Promise<boolean> {
-    const query = `UPDATE content_posts SET status = 'publishing', updated_at = NOW() WHERE id = $1 AND status = 'scheduled'`;
+  async transitionToScheduled(id: string, scheduledAt: Date): Promise<boolean> {
+    const query = `UPDATE content_posts SET status = 'scheduled', scheduled_at = $2, updated_at = NOW() WHERE id = $1 AND status IN ('draft', 'failed', 'cancelled', 'reconnect_required')`;
+    const { rowCount } = await pool.query(query, [id, scheduledAt]);
+    return (rowCount ?? 0) > 0;
+  }
+
+  async transitionToPublishing(id: string): Promise<boolean> {
+    const query = `UPDATE content_posts SET status = 'publishing', updated_at = NOW() WHERE id = $1 AND status IN ('scheduled', 'draft', 'failed')`;
     const { rowCount } = await pool.query(query, [id]);
     return (rowCount ?? 0) > 0;
   }
 
-  async markPublished(id: string, externalId: string): Promise<void> {
+  async transitionToPublished(id: string, externalId: string): Promise<void> {
     const query = `
       UPDATE content_posts 
       SET status = 'published', external_post_id = $2, published_at = NOW(), updated_at = NOW()
@@ -97,12 +109,13 @@ export class ContentRepository {
     await pool.query(query, [id, externalId]);
   }
 
-  async markFailed(id: string, reason: string): Promise<void> {
+  async transitionToFailed(id: string, reason: string, reconnectRequired = false): Promise<void> {
+    const status = reconnectRequired ? 'reconnect_required' : 'failed';
     const query = `
       UPDATE content_posts 
-      SET status = 'failed', failure_reason = $2, updated_at = NOW()
+      SET status = $2, failure_reason = $3, updated_at = NOW()
       WHERE id = $1
     `;
-    await pool.query(query, [id, reason]);
+    await pool.query(query, [id, status, reason]);
   }
 }

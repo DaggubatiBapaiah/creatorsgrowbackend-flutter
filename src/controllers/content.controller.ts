@@ -3,6 +3,7 @@ import { ContentRepository } from '../repositories/content.repository';
 import { SocialRepository } from '../repositories/social.repository';
 import { ValidationError } from '../utils/errors';
 import { PublisherFactory } from '../services/publishing/publisher.factory';
+import { boss, PUBLISH_JOB } from '../workers/job_queue';
 
 export class ContentController {
   private contentRepo = new ContentRepository();
@@ -40,18 +41,24 @@ export class ContentController {
       );
 
       if (post.status === 'published' || post.status === 'publishing') {
-         await this.contentRepo.markPublishing(post.id);
+         await this.contentRepo.transitionToPublishing(post.id);
          const publisher = PublisherFactory.getPublisher(account.platform);
          const result = await publisher.publish(post, account);
          
          if (result.success && result.externalPostId) {
-           await this.contentRepo.markPublished(post.id, result.externalPostId);
+           await this.contentRepo.transitionToPublished(post.id, result.externalPostId);
          } else {
-           await this.contentRepo.markFailed(post.id, result.error || 'Unknown error');
+           await this.contentRepo.transitionToFailed(post.id, result.error || 'Unknown error');
          }
          
          const updatedPost = await this.contentRepo.getPostById(post.id, userId);
          return res.status(201).json({ post: updatedPost });
+      }
+
+      if (post.status === 'scheduled' && post.scheduled_at) {
+         // Enqueue for pg-boss
+         const delay = post.scheduled_at.getTime() - Date.now();
+         await boss.send(PUBLISH_JOB, { postId: post.id }, { startAfter: Math.max(0, delay / 1000) });
       }
 
       return res.status(201).json({ post });
@@ -89,6 +96,12 @@ export class ContentController {
         status ?? post.status,
         scheduledAt !== undefined ? (scheduledAt ? new Date(scheduledAt) : null) : post.scheduled_at
       );
+
+      if (updated && updated.status === 'scheduled' && updated.scheduled_at) {
+        // Simple strategy: send a new job. The worker checks status and idempotency.
+        const delay = updated.scheduled_at.getTime() - Date.now();
+        await boss.send(PUBLISH_JOB, { postId: updated.id }, { startAfter: Math.max(0, delay / 1000) });
+      }
 
       return res.status(200).json({ post: updated });
     } catch (error) {
