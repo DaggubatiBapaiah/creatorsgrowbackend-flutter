@@ -11,6 +11,7 @@ export interface SocialAccount {
   refresh_token: string | null;
   expires_at: Date | null;
   status: string;
+  metadata: Record<string, any> | null;
   created_at: Date;
   updated_at: Date;
 }
@@ -51,14 +52,15 @@ export class SocialRepository {
     accessToken: string,
     refreshToken: string | null,
     expiresAt: Date | null,
-    status: string = 'connected'
+    status: string = 'connected',
+    metadata: Record<string, any> | null = null
   ): Promise<SocialAccount> {
     const query = `
       INSERT INTO social_accounts (
         id, user_id, platform, platform_account_id, username, 
-        profile_picture_url, access_token, refresh_token, expires_at, status, updated_at
+        profile_picture_url, access_token, refresh_token, expires_at, status, metadata, updated_at
       )
-      VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
+      VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())
       ON CONFLICT (platform, platform_account_id)
       DO UPDATE SET
         user_id = EXCLUDED.user_id,
@@ -68,6 +70,7 @@ export class SocialRepository {
         refresh_token = EXCLUDED.refresh_token,
         expires_at = EXCLUDED.expires_at,
         status = EXCLUDED.status,
+        metadata = EXCLUDED.metadata,
         updated_at = NOW()
       RETURNING *
     `;
@@ -81,6 +84,7 @@ export class SocialRepository {
       refreshToken,
       expiresAt,
       status,
+      metadata,
     ];
     const { rows } = await pool.query(query, values);
     return rows[0];

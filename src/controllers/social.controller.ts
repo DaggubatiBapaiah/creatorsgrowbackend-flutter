@@ -90,15 +90,16 @@ export class SocialController {
       const userId = oauthState.user_id;
 
       // Exchange code and get profile using the MetaOAuthClient
-      const accessToken = await metaOAuthClient.exchangeCode(code as string);
-      const profile = await metaOAuthClient.getProfile(accessToken);
+      const tokenData = await metaOAuthClient.exchangeCode(code as string);
+      const profile = await metaOAuthClient.getProfile(tokenData.accessToken);
 
       // Encrypt sensitive access token before saving
-      const encryptedToken = encrypt(accessToken);
+      const encryptedToken = encrypt(tokenData.accessToken);
 
-      // We explicitly model expiration instead of a fake refresh token.
-      // Meta long-lived tokens generally last 60 days. We'll set a 59 day expiry.
-      const expiresAt = new Date(Date.now() + 59 * 24 * 60 * 60 * 1000);
+      let expiresAt: Date | null = null;
+      if (tokenData.expiresInSeconds) {
+        expiresAt = new Date(Date.now() + tokenData.expiresInSeconds * 1000);
+      }
 
       // Create connection record
       await this.socialRepository.createOrUpdateAccount(
@@ -110,7 +111,8 @@ export class SocialController {
         encryptedToken,
         null, // refresh token not supported by this basic flow
         expiresAt,
-        'connected'
+        'connected',
+        { facebookPageId: profile.facebookPageId }
       );
 
       res.setHeader('Content-Type', 'text/html');
