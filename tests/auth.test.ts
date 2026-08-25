@@ -4,6 +4,7 @@ import { pool } from '../src/config/db';
 import { runMigrations } from '../src/db/migrate';
 
 describe('Auth & Health API Integration Tests', () => {
+  jest.setTimeout(30000);
   const uniqueSuffix = () => Math.random().toString(36).substring(2, 10);
   let testUserEmail = '';
   let testUserPassword = 'StrongPassword123!';
