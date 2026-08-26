@@ -10,6 +10,8 @@ import { mediaRouter } from './routes/media.routes';
 import analyticsRouter from './routes/analytics.routes';
 import growthRouter from './routes/growth.routes';
 import aiRouter from './routes/ai.routes';
+import crmRouter from './routes/crm.routes';
+import mediaKitRouter from './routes/mediakit.routes';
 import path from 'path';
 import { errorHandler } from './middleware/error.middleware';
 
@@ -32,6 +34,8 @@ app.use('/api/v1/media', mediaRouter);
 app.use('/api/v1/analytics', analyticsRouter);
 app.use('/api/v1/growth', growthRouter);
 app.use('/api/v1/ai', aiRouter);
+app.use('/api/v1/crm', crmRouter);
+app.use('/api/v1/media-kit', mediaKitRouter);
 
 app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 

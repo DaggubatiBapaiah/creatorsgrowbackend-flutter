@@ -1,0 +1,1 @@
+CREATE INDEX IF NOT EXISTS idx_brand_deals_user_stage ON brand_deals(user_id, stage);
