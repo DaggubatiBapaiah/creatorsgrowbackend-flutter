@@ -12,6 +12,7 @@ export interface ScheduledPost {
   published_at: Date | null;
   external_post_id: string | null;
   failure_reason: string | null;
+  metadata: any | null;
   created_at: Date;
   updated_at: Date;
 }
@@ -103,7 +104,7 @@ export class ContentRepository {
   async transitionToPublished(id: string, externalId: string): Promise<void> {
     const query = `
       UPDATE content_posts 
-      SET status = 'published', external_post_id = $2, published_at = NOW(), updated_at = NOW()
+      SET status = 'published', external_post_id = $2, published_at = NOW(), metadata = '{}'::jsonb, updated_at = NOW()
       WHERE id = $1
     `;
     await pool.query(query, [id, externalId]);
@@ -113,9 +114,18 @@ export class ContentRepository {
     const status = reconnectRequired ? 'reconnect_required' : 'failed';
     const query = `
       UPDATE content_posts 
-      SET status = $2, failure_reason = $3, updated_at = NOW()
+      SET status = $2, failure_reason = $3, metadata = '{}'::jsonb, updated_at = NOW()
       WHERE id = $1
     `;
     await pool.query(query, [id, status, reason]);
+  }
+
+  async updatePostMetadata(id: string, metadata: any): Promise<void> {
+    const query = `
+      UPDATE content_posts
+      SET metadata = $2, updated_at = NOW()
+      WHERE id = $1
+    `;
+    await pool.query(query, [id, metadata]);
   }
 }

@@ -61,7 +61,7 @@ export async function startJobQueue() {
       }
 
       const acquired = await contentRepo.transitionToPublishing(post.id);
-      if (!acquired) {
+      if (!acquired && post.status !== 'publishing') {
          console.warn(`[PgBoss] Job ${job.id}: Failed to acquire publishing lock for ${post.id}`);
          return; // Maybe it's being published elsewhere
       }
@@ -78,26 +78,34 @@ export async function startJobQueue() {
       if (result.success && result.externalPostId) {
         await contentRepo.transitionToPublished(post.id, result.externalPostId);
       } else {
-        if (result.error?.includes('disconnected or expired') || result.error?.includes('OAuthException')) {
-           await contentRepo.transitionToFailed(post.id, result.error, true); // reconnect required
+        const errorMsg = result.error || 'Unknown error';
+        if (errorMsg.includes('disconnected or expired') || errorMsg.includes('OAuthException')) {
+           await contentRepo.transitionToFailed(post.id, errorMsg, true); // reconnect required
+        } else if (errorMsg.includes('permanent_failure') || errorMsg.includes('requires a video asset')) {
+           await contentRepo.transitionToFailed(post.id, errorMsg, false); // permanent failure
         } else {
-           // Throw to allow pg-boss to retry
-           throw new Error(result.error || 'Unknown error');
+           // Retryable error (e.g. network timeout, or "TikTok processing...")
+           // Do not transition to failed. Just throw so pg-boss retries it later.
+           console.log(`[PgBoss] Job ${job.id}: Retryable error for post ${post.id}: ${errorMsg}`);
+           throw new Error(errorMsg);
         }
       }
     } catch (err: any) {
-      await contentRepo.transitionToFailed(data.postId, err.message || 'Worker exception');
-      throw err; // Ensure pg-boss knows it failed
+       // Only mark as failed if it's an unexpected severe exception.
+       // We'll assume everything caught here is retryable unless we manually called transitionToFailed above.
+       const message = err.message || 'Worker exception';
+       console.error(`[PgBoss] Job ${job.id} exception:`, message);
+       throw err; // Let pg-boss retry it. We leave status as 'publishing'.
     }
   });
 
   // Work on analytics account sync
   await boss.work(ANALYTICS_ACCOUNT_SYNC, async () => {
+    // Analytics sync code remains unchanged
     console.log('[PgBoss] Starting analytics account sync');
     const socialRepo = new SocialRepository();
     const analyticsRepo = new AnalyticsRepository();
     
-    // Fetch all connected social accounts
     const result = await pool.query(`SELECT * FROM social_accounts WHERE status = 'connected'`);
     const accounts = result.rows;
 
@@ -122,10 +130,10 @@ export async function startJobQueue() {
 
   // Work on analytics post sync
   await boss.work(ANALYTICS_POST_SYNC, async () => {
+    // Analytics sync code remains unchanged
     console.log('[PgBoss] Starting analytics post sync');
     const analyticsRepo = new AnalyticsRepository();
     
-    // Fetch recently published posts (e.g. within last 30 days)
     const result = await pool.query(`
       SELECT p.*, a.access_token_encrypted, a.access_token_iv, a.platform_account_id
       FROM content_posts p
