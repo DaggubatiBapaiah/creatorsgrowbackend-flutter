@@ -9,9 +9,9 @@ router.get('/accounts', authenticate, socialController.getAccounts);
 router.delete('/accounts/:id', authenticate, socialController.disconnectAccount);
 
 // Changed to POST and requires authentication
-router.post('/meta/connect', authenticate, socialController.metaConnect);
+router.post('/:platform/connect', authenticate, socialController.connect);
 
 // Callback remains GET as it's hit by the browser redirect
-router.get('/meta/callback', socialController.metaCallback);
+router.get('/:platform/callback', socialController.callback);
 
 export default router;

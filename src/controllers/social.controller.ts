@@ -4,7 +4,7 @@ import { env } from '../config/env';
 import { SocialRepository } from '../repositories/social.repository';
 import { UnauthorizedError, ValidationError } from '../utils/errors';
 import { encrypt } from '../utils/crypto';
-import { metaOAuthClient } from '../services/oauth/meta.client';
+import { OAuthClientFactory } from '../services/oauth/oauth-client.factory';
 
 export class SocialController {
   private socialRepository = new SocialRepository();
@@ -45,27 +45,27 @@ export class SocialController {
     }
   };
 
-  metaConnect = async (req: Request, res: Response, next: NextFunction) => {
+  connect = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const userId = req.user!.id;
+      const { platform } = req.params;
 
-      // Generate 32-byte secure random state
+      const client = OAuthClientFactory.getClient(platform);
+
       const state = crypto.randomBytes(32).toString('hex');
       
-      // Store in DB, expires in 10 minutes (600,000 ms)
-      await this.socialRepository.createOAuthState(state, userId, 'META', 10 * 60 * 1000);
+      await this.socialRepository.createOAuthState(state, userId, platform.toUpperCase(), 10 * 60 * 1000);
 
-      // Meta OAuth Dialog url
-      const metaAuthUrl = `https://www.facebook.com/v19.0/dialog/oauth?client_id=${env.META_APP_ID}&redirect_uri=${encodeURIComponent(env.META_REDIRECT_URI)}&state=${state}&scope=instagram_basic,instagram_content_publish,pages_show_list,pages_read_engagement`;
-
-      return res.status(200).json({ authUrl: metaAuthUrl });
+      const authUrl = client.getAuthUrl(state);
+      return res.status(200).json({ authUrl });
     } catch (error) {
       next(error);
     }
   };
 
-  metaCallback = async (req: Request, res: Response, next: NextFunction) => {
+  callback = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      const { platform } = req.params;
       const { code, state, error, error_description } = req.query;
 
       if (error) {
@@ -76,10 +76,9 @@ export class SocialController {
         return res.status(400).send('<h1>Bad Request</h1><p>Missing authorization code or verification state.</p>');
       }
 
-      // Atomically consume state (Single-Use Validation)
       const oauthState = await this.socialRepository.consumeOAuthState(state as string);
       
-      if (!oauthState) {
+      if (!oauthState || oauthState.platform !== platform.toUpperCase()) {
         return res.status(400).send('<h1>Security Validation Failed</h1><p>Invalid or already used OAuth state parameter.</p>');
       }
 
@@ -88,31 +87,30 @@ export class SocialController {
       }
 
       const userId = oauthState.user_id;
+      const client = OAuthClientFactory.getClient(platform);
+      
+      const tokenData = await client.exchangeCode(code as string);
+      const profile = await client.getProfile(tokenData.accessToken);
 
-      // Exchange code and get profile using the MetaOAuthClient
-      const tokenData = await metaOAuthClient.exchangeCode(code as string);
-      const profile = await metaOAuthClient.getProfile(tokenData.accessToken);
-
-      // Encrypt sensitive access token before saving
       const encryptedToken = encrypt(tokenData.accessToken);
+      const encryptedRefreshToken = tokenData.refreshToken ? encrypt(tokenData.refreshToken) : null;
 
       let expiresAt: Date | null = null;
       if (tokenData.expiresInSeconds) {
         expiresAt = new Date(Date.now() + tokenData.expiresInSeconds * 1000);
       }
 
-      // Create connection record
       await this.socialRepository.createOrUpdateAccount(
         userId,
-        'INSTAGRAM',
+        platform.toUpperCase() === 'META' ? 'INSTAGRAM' : platform.toUpperCase(),
         profile.platformAccountId,
         profile.username,
         profile.profilePictureUrl,
         encryptedToken,
-        null, // refresh token not supported by this basic flow
+        encryptedRefreshToken,
         expiresAt,
         'connected',
-        { facebookPageId: profile.facebookPageId }
+        profile.metadata
       );
 
       res.setHeader('Content-Type', 'text/html');

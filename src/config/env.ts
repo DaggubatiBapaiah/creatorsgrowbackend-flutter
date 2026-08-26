@@ -14,6 +14,10 @@ const envSchema = z.object({
   META_APP_ID: z.string(),
   META_APP_SECRET: z.string(),
   META_REDIRECT_URI: z.string().url(),
+  TIKTOK_OAUTH_MODE: z.enum(['real', 'mock']).default('mock'),
+  TIKTOK_CLIENT_KEY: z.string().default('mock'),
+  TIKTOK_CLIENT_SECRET: z.string().default('mock'),
+  TIKTOK_REDIRECT_URI: z.string().url().default('http://localhost:3000/api/v1/social/tiktok/callback'),
   ENCRYPTION_KEY: z.string().length(32, 'ENCRYPTION_KEY must be exactly 32 characters'),
 }).refine((data) => {
   if (data.META_OAUTH_MODE === 'real') {

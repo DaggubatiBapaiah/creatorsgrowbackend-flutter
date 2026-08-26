@@ -1,26 +1,13 @@
 import crypto from 'crypto';
 import { env } from '../../config/env';
+import { OAuthClient, OAuthProfile, OAuthTokenResponse } from './oauth-client.interface';
 
-export interface MetaProfile {
-  platformAccountId: string;
-  username: string;
-  profilePictureUrl: string;
-  facebookPageId?: string;
-}
+export class RealMetaOAuthClient implements OAuthClient {
+  getAuthUrl(state: string): string {
+    return `https://www.facebook.com/v19.0/dialog/oauth?client_id=${env.META_APP_ID}&redirect_uri=${encodeURIComponent(env.META_REDIRECT_URI)}&state=${state}&scope=instagram_basic,instagram_content_publish,pages_show_list,pages_read_engagement`;
+  }
 
-export interface MetaTokenResponse {
-  accessToken: string;
-  expiresInSeconds?: number;
-}
-
-export interface MetaOAuthClient {
-  exchangeCode(code: string): Promise<MetaTokenResponse>;
-  getProfile(accessToken: string): Promise<MetaProfile>;
-}
-
-export class RealMetaOAuthClient implements MetaOAuthClient {
-  async exchangeCode(code: string): Promise<MetaTokenResponse> {
-    // 1. Get short-lived token
+  async exchangeCode(code: string): Promise<OAuthTokenResponse> {
     const shortLivedUrl = `https://graph.facebook.com/v19.0/oauth/access_token?client_id=${env.META_APP_ID}&redirect_uri=${encodeURIComponent(env.META_REDIRECT_URI)}&client_secret=${env.META_APP_SECRET}&code=${code}`;
     const shortResponse = await fetch(shortLivedUrl);
     const shortData = await shortResponse.json();
@@ -29,13 +16,11 @@ export class RealMetaOAuthClient implements MetaOAuthClient {
       throw new Error(`Meta Token Exchange Failed: ${shortData.error?.message || 'Unknown error'}`);
     }
 
-    // 2. Exchange for long-lived token
     const longLivedUrl = `https://graph.facebook.com/v19.0/oauth/access_token?grant_type=fb_exchange_token&client_id=${env.META_APP_ID}&client_secret=${env.META_APP_SECRET}&fb_exchange_token=${shortData.access_token}`;
     const longResponse = await fetch(longLivedUrl);
     const longData = await longResponse.json();
 
     if (!longResponse.ok) {
-      // If long-lived fails, fallback to short-lived
       return {
         accessToken: shortData.access_token,
         expiresInSeconds: shortData.expires_in,
@@ -48,8 +33,7 @@ export class RealMetaOAuthClient implements MetaOAuthClient {
     };
   }
 
-  async getProfile(accessToken: string): Promise<MetaProfile> {
-    // Fetch user's pages with connected Instagram Business Accounts
+  async getProfile(accessToken: string): Promise<OAuthProfile> {
     const pagesUrl = `https://graph.facebook.com/v19.0/me/accounts?fields=id,name,instagram_business_account{id,username,profile_picture_url}&access_token=${accessToken}`;
     const response = await fetch(pagesUrl);
     const data = await response.json();
@@ -63,7 +47,6 @@ export class RealMetaOAuthClient implements MetaOAuthClient {
       throw new Error('No Facebook Pages found for this user.');
     }
 
-    // Find the first page that has an instagram_business_account
     const pageWithIg = pages.find((p: any) => p.instagram_business_account != null);
 
     if (!pageWithIg) {
@@ -76,31 +59,33 @@ export class RealMetaOAuthClient implements MetaOAuthClient {
       platformAccountId: igAccount.id,
       username: igAccount.username || `ig_${igAccount.id}`,
       profilePictureUrl: igAccount.profile_picture_url || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=150',
-      facebookPageId: pageWithIg.id,
+      metadata: { facebookPageId: pageWithIg.id },
     };
   }
 }
 
-export class DevelopmentMockMetaOAuthClient implements MetaOAuthClient {
-  async exchangeCode(code: string): Promise<MetaTokenResponse> {
-    console.log('[MOCK] Exchanging code for Meta access token');
+export class DevelopmentMockMetaOAuthClient implements OAuthClient {
+  getAuthUrl(state: string): string {
+    return `https://www.facebook.com/v19.0/dialog/oauth?client_id=${env.META_APP_ID}&redirect_uri=${encodeURIComponent(env.META_REDIRECT_URI)}&state=${state}&scope=instagram_basic,instagram_content_publish,pages_show_list,pages_read_engagement`;
+  }
+
+  async exchangeCode(code: string): Promise<OAuthTokenResponse> {
     return {
       accessToken: 'mock_meta_access_token_' + crypto.randomBytes(8).toString('hex'),
-      expiresInSeconds: 5184000, // 60 days
+      expiresInSeconds: 5184000,
     };
   }
 
-  async getProfile(accessToken: string): Promise<MetaProfile> {
-    console.log('[MOCK] Fetching profile for token:', accessToken);
+  async getProfile(accessToken: string): Promise<OAuthProfile> {
     return {
       platformAccountId: '1182224441650601',
       username: 'test_creator_meta',
       profilePictureUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=150',
-      facebookPageId: 'mock_page_id_123',
+      metadata: { facebookPageId: 'mock_page_id_123' },
     };
   }
 }
 
-export const metaOAuthClient: MetaOAuthClient = env.META_OAUTH_MODE === 'real'
+export const metaOAuthClient: OAuthClient = env.META_OAUTH_MODE === 'real'
   ? new RealMetaOAuthClient()
   : new DevelopmentMockMetaOAuthClient();

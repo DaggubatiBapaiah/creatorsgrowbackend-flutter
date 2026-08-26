@@ -1,4 +1,5 @@
 import { RealMetaOAuthClient } from '../src/services/oauth/meta.client';
+import { OAuthProfile, OAuthTokenResponse } from '../src/services/oauth/oauth-client.interface';
 
 describe('RealMetaOAuthClient', () => {
   let client: RealMetaOAuthClient;
@@ -73,7 +74,7 @@ describe('RealMetaOAuthClient', () => {
       expect(profile.platformAccountId).toBe('ig123');
       expect(profile.username).toBe('my_ig_account');
       expect(profile.profilePictureUrl).toBe('http://example.com/pic.jpg');
-      expect(profile.facebookPageId).toBe('page2');
+      expect(profile.metadata?.facebookPageId).toBe('page2');
     });
 
     it('should throw an error if no instagram business account is found', async () => {
