@@ -8,6 +8,7 @@ import socialRouter from './routes/social.routes';
 import { contentRouter } from './routes/content.routes';
 import { mediaRouter } from './routes/media.routes';
 import analyticsRouter from './routes/analytics.routes';
+import growthRouter from './routes/growth.routes';
 import path from 'path';
 import { errorHandler } from './middleware/error.middleware';
 
@@ -28,6 +29,7 @@ app.use('/api/v1/social', socialRouter);
 app.use('/api/v1/content', contentRouter);
 app.use('/api/v1/media', mediaRouter);
 app.use('/api/v1/analytics', analyticsRouter);
+app.use('/api/v1/growth', growthRouter);
 
 app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
