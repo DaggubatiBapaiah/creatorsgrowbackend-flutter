@@ -12,8 +12,8 @@ export interface User {
 export class UserRepository {
   async createUser(email: string, passwordHash: string, displayName: string): Promise<User> {
     const query = `
-      INSERT INTO users (id, username, email, password_hash, display_name)
-      VALUES (gen_random_uuid(), $1, $1, $2, $3)
+      INSERT INTO users (id, email, password_hash, display_name)
+      VALUES (gen_random_uuid(), $1, $2, $3)
       RETURNING id, email, password_hash, display_name, created_at, updated_at
     `;
     const values = [email.toLowerCase().trim(), passwordHash, displayName];

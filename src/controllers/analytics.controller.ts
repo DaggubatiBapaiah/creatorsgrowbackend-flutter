@@ -1,34 +1,24 @@
 import { Request, Response, NextFunction } from 'express';
 import { pool } from '../config/db';
 import { ContentRepository } from '../repositories/content.repository';
+import { AnalyticsRepository } from '../repositories/analytics.repository';
 
 export class AnalyticsController {
   getDashboardStats = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const userId = req.user!.id;
+      const analyticsRepo = new AnalyticsRepository();
 
-      // Real metrics from DB
-      const accountQuery = `SELECT COUNT(*) as count FROM social_accounts WHERE user_id = $1`;
-      const contentQuery = `
-        SELECT status, COUNT(*) as count 
-        FROM content_posts 
-        WHERE user_id = $1 
-        GROUP BY status
-      `;
-
-      const [accountRes, contentRes] = await Promise.all([
-        pool.query(accountQuery, [userId]),
-        pool.query(contentQuery, [userId])
-      ]);
-
-      const accountsCount = parseInt(accountRes.rows[0].count, 10);
+      // 1. Get Accounts and Posts basic counts
+      const accounts = await analyticsRepo.getAccountIdsByUserId(userId);
+      const contentStatusCounts = await analyticsRepo.getPostStatusCounts(userId);
       
       let scheduledCount = 0;
       let publishedCount = 0;
       let draftCount = 0;
       let failedCount = 0;
 
-      for (const row of contentRes.rows) {
+      for (const row of contentStatusCounts) {
         const count = parseInt(row.count, 10);
         if (row.status === 'scheduled') scheduledCount += count;
         if (row.status === 'published') publishedCount += count;
@@ -36,15 +26,46 @@ export class AnalyticsController {
         if (row.status === 'failed' || row.status === 'reconnect_required') failedCount += count;
       }
 
-      // Mock aggregated analytics for now since we don't have historical syncing implemented
+      // 2. Aggregate Reach, Impressions, Followers from latest account snapshots
+      let totalFollowers = 0;
+      let totalReach24h = 0;
+      let totalImpressions24h = 0;
+      const historyPoints: any[] = [];
+
+      for (const acc of accounts) {
+        const snapshot = await analyticsRepo.getAccountLatestSnapshot(acc.id);
+        if (snapshot) {
+          totalFollowers += snapshot.followers_count;
+          totalReach24h += snapshot.reach_24h;
+          totalImpressions24h += snapshot.impressions_24h;
+        }
+
+        const history = await analyticsRepo.getAccountSnapshotHistory(acc.id, 90);
+        historyPoints.push(...history);
+      }
+
+      // Aggregate history by date (YYYY-MM-DD)
+      const dateMap = new Map<string, number>();
+      for (const point of historyPoints) {
+        const dateKey = new Date(point.collected_at).toISOString().split('T')[0];
+        const reach = parseInt(point.reach_24h || 0, 10);
+        dateMap.set(dateKey, (dateMap.get(dateKey) || 0) + reach);
+      }
+      
+      const chartHistory = Array.from(dateMap.entries())
+        .map(([date, reach]) => ({ date, reach }))
+        .sort((a, b) => a.date.localeCompare(b.date));
+
       return res.status(200).json({
-        connectedAccounts: accountsCount,
+        connectedAccounts: accounts.length,
         scheduledPosts: scheduledCount,
         publishedPosts: publishedCount,
         draftPosts: draftCount,
         failedPosts: failedCount,
-        totalReach: 'Unavailable', // Requires Meta Insights
-        totalEngagement: 'Unavailable' // Requires Meta Insights
+        followersCount: totalFollowers,
+        reach24h: totalReach24h,
+        impressions24h: totalImpressions24h,
+        history: chartHistory,
       });
     } catch (error) {
       next(error);
@@ -63,17 +84,30 @@ export class AnalyticsController {
         return res.status(404).json({ error: 'Post not found' });
       }
 
-      const query = `SELECT * FROM post_analytics WHERE post_id = $1`;
-      const { rows } = await pool.query(query, [postId]);
+      const analyticsRepo = new AnalyticsRepository();
+      const snapshot = await analyticsRepo.getLatestPostSnapshot(postId);
 
-      if (rows.length === 0) {
+      if (!snapshot) {
         return res.status(200).json({ 
           status: 'unavailable',
           message: 'Analytics not synced yet or unavailable for this platform.'
         });
       }
 
-      return res.status(200).json({ analytics: rows[0] });
+      return res.status(200).json({ analytics: snapshot });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  getTopPosts = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const userId = req.user!.id;
+
+      const analyticsRepo = new AnalyticsRepository();
+      const topPosts = await analyticsRepo.getTopPosts(userId);
+
+      return res.status(200).json({ topPosts });
     } catch (error) {
       next(error);
     }
