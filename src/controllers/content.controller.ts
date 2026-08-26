@@ -1,4 +1,4 @@
-import { Request, Response, NextFunction } from 'express';
+﻿import { Request, Response, NextFunction } from 'express';
 import { ContentRepository } from '../repositories/content.repository';
 import { SocialRepository } from '../repositories/social.repository';
 import { ValidationError } from '../utils/errors';
@@ -12,7 +12,7 @@ export class ContentController {
   createPost = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const userId = req.user!.id;
-      const { socialAccountId, platform, caption, mediaIds, status, scheduledAt } = req.body;
+      const { socialAccountId, platform, caption, mediaIds, status, scheduledAt, aiGenerated } = req.body;
 
       if (!socialAccountId || !platform) {
         throw new ValidationError('socialAccountId and platform are required.');
@@ -37,7 +37,8 @@ export class ContentController {
         caption,
         mediaIds || [],
         status || 'draft',
-        scheduledAt ? new Date(scheduledAt) : null
+        scheduledAt ? new Date(scheduledAt) : null,
+        aiGenerated === true
       );
 
       if (post.status === 'published' || post.status === 'publishing') {
@@ -56,7 +57,6 @@ export class ContentController {
       }
 
       if (post.status === 'scheduled' && post.scheduled_at) {
-         // Enqueue for pg-boss
          const delay = post.scheduled_at.getTime() - Date.now();
          await boss.send(PUBLISH_JOB, { postId: post.id }, { startAfter: Math.max(0, delay / 1000) });
       }
@@ -98,7 +98,6 @@ export class ContentController {
       );
 
       if (updated && updated.status === 'scheduled' && updated.scheduled_at) {
-        // Simple strategy: send a new job. The worker checks status and idempotency.
         const delay = updated.scheduled_at.getTime() - Date.now();
         await boss.send(PUBLISH_JOB, { postId: updated.id }, { startAfter: Math.max(0, delay / 1000) });
       }

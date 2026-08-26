@@ -25,16 +25,17 @@ export class ContentRepository {
     caption: string,
     mediaIds: string[],
     status: string,
-    scheduledAt: Date | null
+    scheduledAt: Date | null,
+    aiGenerated: boolean = false
   ): Promise<ScheduledPost> {
     const query = `
       INSERT INTO content_posts (
-        user_id, social_account_id, platform, caption, media_ids, status, scheduled_at, updated_at
+        user_id, social_account_id, platform, caption, media_ids, status, scheduled_at, ai_generated, updated_at
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
       RETURNING *
     `;
-    const { rows } = await pool.query(query, [userId, socialAccountId, platform, caption, mediaIds, status, scheduledAt]);
+    const { rows } = await pool.query(query, [userId, socialAccountId, platform, caption, mediaIds || [], status, scheduledAt, aiGenerated]);
     return rows[0];
   }
 
@@ -52,7 +53,7 @@ export class ContentRepository {
       WHERE id = $5 AND user_id = $6
       RETURNING *
     `;
-    const { rows } = await pool.query(query, [caption, mediaIds, status, scheduledAt, id, userId]);
+    const { rows } = await pool.query(query, [caption, mediaIds || [], status, scheduledAt, id, userId]);
     return rows[0] || null;
   }
 
