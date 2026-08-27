@@ -44,7 +44,8 @@ app.use('/api/v1/billing', billingRouter);
 app.use('/api/v1/inbox', inboxRouter);
 app.use('/api/v1/notifications', notificationRouter);
 
-app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
+const uploadsPath = process.env.VERCEL ? path.join('/tmp', 'uploads') : path.join(process.cwd(), 'uploads');
+app.use('/uploads', express.static(uploadsPath));
 
 app.use(errorHandler);
 
