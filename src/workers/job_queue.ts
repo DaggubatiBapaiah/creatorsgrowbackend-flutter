@@ -16,7 +16,8 @@ export let boss: any = {
 
 if (process.env.NODE_ENV !== 'test') {
   const PgBoss = require('pg-boss');
-  boss = new PgBoss({
+  const PgBossClass = PgBoss.PgBoss || PgBoss.default || PgBoss;
+  boss = new PgBossClass({
     connectionString: env.DATABASE_URL,
   });
 }

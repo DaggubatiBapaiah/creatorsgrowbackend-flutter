@@ -1,96 +1,81 @@
 import { RealMetaOAuthClient } from '../src/services/oauth/meta.client';
-import { OAuthProfile, OAuthTokenResponse } from '../src/services/oauth/oauth-client.interface';
-
+import { env } from '../src/config/env';
+// Mock fetch globally
+global.fetch = jest.fn();
 describe('RealMetaOAuthClient', () => {
   let client: RealMetaOAuthClient;
-
   beforeEach(() => {
     client = new RealMetaOAuthClient();
-    global.fetch = jest.fn();
-  });
-
-  afterEach(() => {
     jest.resetAllMocks();
   });
-
-  describe('exchangeCode', () => {
-    it('should fallback to short-lived token if long-lived exchange fails', async () => {
-      (global.fetch as jest.Mock)
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({ access_token: 'short_token', expires_in: 3600 }),
-        })
-        .mockResolvedValueOnce({
-          ok: false,
-          json: async () => ({ error: { message: 'Long lived failed' } }),
-        });
-
-      const result = await client.exchangeCode('test_code');
-      expect(result.accessToken).toBe('short_token');
-      expect(result.expiresInSeconds).toBe(3600);
-    });
-
-    it('should return long-lived token successfully', async () => {
-      (global.fetch as jest.Mock)
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({ access_token: 'short_token', expires_in: 3600 }),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({ access_token: 'long_token', expires_in: 5184000 }),
-        });
-
-      const result = await client.exchangeCode('test_code');
-      expect(result.accessToken).toBe('long_token');
-      expect(result.expiresInSeconds).toBe(5184000);
+  describe('getAuthUrl', () => {
+    it('should generate a valid Facebook Login for Business authorization URL', () => {
+      const state = 'test_state_123';
+      const url = client.getAuthUrl(state);
+      expect(url).toContain('https://www.facebook.com/v19.0/dialog/oauth');
+      expect(url).toContain('client_id=' + env.META_APP_ID);
+      expect(url).toContain('redirect_uri=');
+      expect(url).toContain('config_id=' + env.META_CONFIG_ID);
+      expect(url).toContain('state=test_state_123');
     });
   });
-
+  describe('exchangeCode', () => {
+    it('should exchange code for access token successfully', async () => {
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ access_token: 'long_token', expires_in: 5184000 }),
+      });
+      const response = await client.exchangeCode('valid_code');
+      expect(response.accessToken).toBe('long_token');
+      expect(response.expiresInSeconds).toBe(5184000);
+      expect(global.fetch).toHaveBeenCalledTimes(1);
+      expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('https://graph.facebook.com/v19.0/oauth/access_token'));
+    });
+  });
   describe('getProfile', () => {
-    it('should return profile correctly when an instagram business account is present', async () => {
+    it('should fetch Instagram profile via Facebook Page Graph API', async () => {
       (global.fetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => ({
           data: [
             {
               id: 'page1',
-              name: 'Page 1',
+              name: 'Test Page Without IG'
             },
             {
               id: 'page2',
-              name: 'Page 2',
+              name: 'Test Page With IG',
               instagram_business_account: {
-                id: 'ig123',
-                username: 'my_ig_account',
-                profile_picture_url: 'http://example.com/pic.jpg',
+                id: '12345678',
+                username: 'ig_testuser',
+                profile_picture_url: 'http://example.com/pic.jpg'
               }
             }
           ]
-        })
+        }),
       });
-
-      const profile = await client.getProfile('some_token');
-      expect(profile.platformAccountId).toBe('ig123');
-      expect(profile.username).toBe('my_ig_account');
+      const profile = await client.getProfile('valid_token');
+      expect(profile.platformAccountId).toBe('12345678');
+      expect(profile.username).toBe('ig_testuser');
       expect(profile.profilePictureUrl).toBe('http://example.com/pic.jpg');
-      expect(profile.metadata?.facebookPageId).toBe('page2');
+      expect(profile.metadata).toEqual({
+        facebookPageId: 'page2',
+      });
     });
-
-    it('should throw an error if no instagram business account is found', async () => {
+    it('should throw error if no Facebook Pages found', async () => {
       (global.fetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
-        json: async () => ({
-          data: [
-            {
-              id: 'page1',
-              name: 'Page 1',
-            }
-          ]
-        })
+        json: async () => ({ data: [] }),
       });
-
-      await expect(client.getProfile('some_token')).rejects.toThrow('No connected Instagram Professional account found on your Facebook Pages.');
+      await expect(client.getProfile('valid_token')).rejects.toThrow('No Facebook Pages found for this user.');
+    });
+    it('should throw error if fetch fails', async () => {
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: false,
+        status: 400,
+        text: async () => 'Bad request',
+      });
+      await expect(client.getProfile('invalid_token')).rejects.toThrow('Meta Profile Fetch Failed: HTTP 400');
     });
   });
 });

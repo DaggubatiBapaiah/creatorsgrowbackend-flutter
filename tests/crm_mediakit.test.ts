@@ -239,4 +239,8 @@ describe('CRM and Media Kit Integration Tests', () => {
       expect(res.text).toContain('could not be found');
     });
   });
+
+  afterAll(async () => {
+    await pool.end();
+  });
 });

@@ -12,6 +12,6 @@ router.delete('/accounts/:id', authenticate, socialController.disconnectAccount)
 router.post('/:platform/connect', authenticate, socialController.connect);
 
 // Callback remains GET as it's hit by the browser redirect
-router.get('/:platform/callback', socialController.callback);
+// Callback moved to auth.routes.ts
 
 export default router;

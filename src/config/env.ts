@@ -1,4 +1,4 @@
-import dotenv from 'dotenv';
+﻿import dotenv from 'dotenv';
 import { z } from 'zod';
 
 dotenv.config();
@@ -14,6 +14,9 @@ const envSchema = z.object({
   META_APP_ID: z.string(),
   META_APP_SECRET: z.string(),
   META_REDIRECT_URI: z.string().url(),
+  META_CONFIG_ID: z.string(),
+  INSTAGRAM_APP_ID: z.string().optional(),
+  INSTAGRAM_APP_SECRET: z.string().optional(),
   TIKTOK_OAUTH_MODE: z.enum(['real', 'mock']).default('mock'),
   TIKTOK_CLIENT_KEY: z.string().default('mock'),
   TIKTOK_CLIENT_SECRET: z.string().default('mock'),
@@ -21,6 +24,9 @@ const envSchema = z.object({
   ENCRYPTION_KEY: z.string().length(32, 'ENCRYPTION_KEY must be exactly 32 characters'),
   AI_PROVIDER: z.enum(['mock', 'gemini']).default('mock'),
   GEMINI_API_KEY: z.string().optional(),
+  RAZORPAY_KEY_ID: z.string().default('rzp_test_mockkeyid123'),
+  RAZORPAY_KEY_SECRET: z.string().default('mocksecret123456789'),
+  RAZORPAY_WEBHOOK_SECRET: z.string().default('mockwebhooksecret123'),
 }).refine((data) => {
   if (data.META_OAUTH_MODE === 'real') {
     if (data.META_APP_ID.includes('your-meta') || data.META_APP_SECRET.includes('your-meta')) {

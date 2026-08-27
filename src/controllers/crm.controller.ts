@@ -1,5 +1,6 @@
 ﻿import { Request, Response, NextFunction } from 'express';
 import { CrmRepository } from '../repositories/crm.repository';
+import { EntitlementService } from '../services/billing/entitlement.service';
 import { pool } from '../config/db';
 import { ValidationError } from '../utils/errors';
 import { z } from 'zod';
@@ -18,10 +19,22 @@ const updateDealSchema = createDealSchema.partial();
 
 export class CrmController {
   private crmRepo = new CrmRepository();
+  private entitlementService = new EntitlementService();
+
+  private checkAccess = async (userId: string, res: Response): Promise<boolean> => {
+    const hasAccess = await this.entitlementService.hasFeatureAccess(userId, 'crm');
+    if (!hasAccess) {
+      res.status(403).json({ error: { message: 'CRM is a Pro feature. Please upgrade your plan.' } });
+      return false;
+    }
+    return true;
+  };
 
   createDeal = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const userId = req.user!.id;
+      if (!(await this.checkAccess(userId, res))) return;
+
       const validated = createDealSchema.parse(req.body);
 
       if (validated.associatedPostId) {
@@ -59,6 +72,8 @@ export class CrmController {
   updateDeal = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const userId = req.user!.id;
+      if (!(await this.checkAccess(userId, res))) return;
+
       const { id } = req.params;
       const validated = updateDealSchema.parse(req.body);
 
@@ -102,6 +117,8 @@ export class CrmController {
   getDeals = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const userId = req.user!.id;
+      if (!(await this.checkAccess(userId, res))) return;
+
       const deals = await this.crmRepo.getDealsByUser(userId);
       res.json({ data: { deals } });
     } catch (error) {
@@ -112,6 +129,8 @@ export class CrmController {
   getDealById = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const userId = req.user!.id;
+      if (!(await this.checkAccess(userId, res))) return;
+
       const { id } = req.params;
 
       const deal = await this.crmRepo.getDealById(id, userId);
@@ -129,6 +148,8 @@ export class CrmController {
   deleteDeal = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const userId = req.user!.id;
+      if (!(await this.checkAccess(userId, res))) return;
+
       const { id } = req.params;
 
       const success = await this.crmRepo.deleteDeal(id, userId);

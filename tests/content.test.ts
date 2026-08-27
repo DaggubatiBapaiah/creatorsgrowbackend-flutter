@@ -186,4 +186,8 @@ describe('Content API Integration Tests', () => {
       expect(res.status).toBe(400); // Invalid social account.
     });
   });
+
+  afterAll(async () => {
+    await pool.end();
+  });
 });

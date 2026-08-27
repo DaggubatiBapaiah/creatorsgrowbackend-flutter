@@ -1,5 +1,6 @@
 ﻿import { Request, Response } from 'express';
 import { AICopilotService } from '../services/ai/ai.service';
+import { EntitlementService } from '../services/billing/entitlement.service';
 import { z } from 'zod';
 
 const generateSchema = z.object({
@@ -17,9 +18,17 @@ const variationSchema = z.object({
 
 export class AIController {
   private aiService = new AICopilotService();
+  private entitlementService = new EntitlementService();
 
   generateCaption = async (req: Request, res: Response): Promise<void> => {
     try {
+      const userId = req.user!.id;
+      const withinLimit = await this.entitlementService.checkAiLimit(userId);
+      if (!withinLimit) {
+        res.status(403).json({ error: { message: 'AI generation limit reached for this month. Please upgrade your plan.' } });
+        return;
+      }
+
       const validated = generateSchema.parse(req.body);
       const variations = await this.aiService.generateVariations(validated.prompt, validated.platform, validated.tone);
       const validatedOutput = z.array(variationSchema).parse(variations);

@@ -163,4 +163,8 @@ describe('AI Copilot API Integration Tests', () => {
       expect(rows[0].ai_generated).toBe(false);
     });
   });
+
+  afterAll(async () => {
+    await pool.end();
+  });
 });

@@ -1,7 +1,8 @@
-import { Request, Response, NextFunction } from 'express';
+﻿import { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
 import { env } from '../config/env';
 import { SocialRepository } from '../repositories/social.repository';
+import { EntitlementService } from '../services/billing/entitlement.service';
 import { UnauthorizedError, ValidationError } from '../utils/errors';
 import { encrypt } from '../utils/crypto';
 import { OAuthClientFactory } from '../services/oauth/oauth-client.factory';
@@ -48,6 +49,17 @@ export class SocialController {
   connect = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const userId = req.user!.id;
+      const entitlementService = new EntitlementService();
+      const withinLimit = await entitlementService.checkAccountLimit(userId);
+      if (!withinLimit) {
+        res.status(403).json({ error: { message: 'Social accounts limit reached for your plan. Please upgrade.' } });
+        return;
+      }
+    } catch (e) {
+      return next(e);
+    }
+    try {
+      const userId = req.user!.id;
       const { platform } = req.params;
 
       const client = OAuthClientFactory.getClient(platform);
@@ -78,7 +90,14 @@ export class SocialController {
 
       const oauthState = await this.socialRepository.consumeOAuthState(state as string);
       
-      if (!oauthState || oauthState.platform !== platform.toUpperCase()) {
+      if (!oauthState) {
+        return res.status(400).send('<h1>Security Validation Failed</h1><p>Invalid or already used OAuth state parameter.</p>');
+      }
+
+      const isMetaGroup = (platform.toUpperCase() === 'META' || platform.toUpperCase() === 'INSTAGRAM' || platform.toUpperCase() === 'FACEBOOK') &&
+                          (oauthState.platform === 'META' || oauthState.platform === 'INSTAGRAM' || oauthState.platform === 'FACEBOOK');
+
+      if (!isMetaGroup && oauthState.platform !== platform.toUpperCase()) {
         return res.status(400).send('<h1>Security Validation Failed</h1><p>Invalid or already used OAuth state parameter.</p>');
       }
 
@@ -102,7 +121,7 @@ export class SocialController {
 
       await this.socialRepository.createOrUpdateAccount(
         userId,
-        platform.toUpperCase() === 'META' ? 'INSTAGRAM' : platform.toUpperCase(),
+        oauthState.platform.toUpperCase() === 'META' ? 'INSTAGRAM' : oauthState.platform.toUpperCase(),
         profile.platformAccountId,
         profile.username,
         profile.profilePictureUrl,
@@ -160,7 +179,7 @@ export class SocialController {
         </head>
         <body>
           <div class="card">
-            <div class="icon">✓</div>
+            <div class="icon">âœ“</div>
             <h1>Connection Successful!</h1>
             <p>Your social account has been connected successfully.</p>
             <p>You can now close this browser tab and return to the application.</p>
@@ -173,3 +192,4 @@ export class SocialController {
     }
   };
 }
+

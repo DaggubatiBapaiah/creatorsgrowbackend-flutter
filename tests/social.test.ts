@@ -1,8 +1,13 @@
-import request from 'supertest';
+process.env.META_OAUTH_MODE = \'mock\';
+import request from \'supertest\';
 import app from '../src/app';
 import { pool } from '../src/config/db';
 import { runMigrations } from '../src/db/migrate';
 import { env } from '../src/config/env';
+env.META_OAUTH_MODE = 'mock';
+env.INSTAGRAM_APP_ID = 'test-meta-app-id';
+env.INSTAGRAM_APP_SECRET = 'test-secret';
+env.META_REDIRECT_URI = 'http://localhost:3000/api/v1/auth/meta/callback';
 
 jest.setTimeout(30000); // 30 seconds timeout to prevent remote DB timeouts
 
@@ -95,10 +100,10 @@ describe('Social API Integration Tests', () => {
     });
   });
 
-  describe('GET /api/v1/social/meta/callback', () => {
+  describe('GET /api/v1/auth/meta/callback', () => {
     it('should fail callback request with missing state parameter', async () => {
       const response = await request(app)
-        .get('/api/v1/social/meta/callback')
+        .get('/api/v1/auth/meta/callback')
         .query({ code: 'mock_code_123' });
 
       expect(response.status).toBe(400);
@@ -107,7 +112,7 @@ describe('Social API Integration Tests', () => {
 
     it('should fail callback request with invalid/unknown state parameter', async () => {
       const response = await request(app)
-        .get('/api/v1/social/meta/callback')
+        .get('/api/v1/auth/meta/callback')
         .query({ code: 'mock_code_123', state: 'invalid-state-123' });
 
       expect(response.status).toBe(400);
@@ -126,7 +131,7 @@ describe('Social API Integration Tests', () => {
 
       // 2. Perform callback request (First Use)
       const callbackRes = await request(app)
-        .get('/api/v1/social/meta/callback')
+        .get('/api/v1/auth/meta/callback')
         .query({ code: 'mock_code_test_123', state });
 
       expect(callbackRes.status).toBe(200);
@@ -134,7 +139,7 @@ describe('Social API Integration Tests', () => {
 
       // 3. Perform callback request again (Second Use)
       const reuseRes = await request(app)
-        .get('/api/v1/social/meta/callback')
+        .get('/api/v1/auth/meta/callback')
         .query({ code: 'mock_code_test_123', state });
 
       // Must fail because state was deleted

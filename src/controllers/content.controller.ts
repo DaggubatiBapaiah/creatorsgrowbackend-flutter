@@ -1,5 +1,6 @@
 ﻿import { Request, Response, NextFunction } from 'express';
 import { ContentRepository } from '../repositories/content.repository';
+import { EntitlementService } from '../services/billing/entitlement.service';
 import { SocialRepository } from '../repositories/social.repository';
 import { ValidationError } from '../utils/errors';
 import { PublisherFactory } from '../services/publishing/publisher.factory';
@@ -10,6 +11,17 @@ export class ContentController {
   private socialRepo = new SocialRepository();
 
   createPost = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const userId = req.user!.id;
+      const entitlementService = new EntitlementService();
+      const withinLimit = await entitlementService.checkPostLimit(userId);
+      if (!withinLimit) {
+        res.status(403).json({ error: { message: 'Monthly scheduled posts limit reached. Please upgrade your plan.' } });
+        return;
+      }
+    } catch (e) {
+      return next(e);
+    }
     try {
       const userId = req.user!.id;
       const { socialAccountId, platform, caption, mediaIds, status, scheduledAt, aiGenerated } = req.body;
@@ -151,3 +163,4 @@ export class ContentController {
     }
   };
 }
+

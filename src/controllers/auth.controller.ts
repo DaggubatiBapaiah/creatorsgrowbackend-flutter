@@ -18,16 +18,20 @@ export class AuthController {
   private authService = new AuthService();
 
   register = async (req: Request, res: Response, next: NextFunction) => {
+    console.log('AUTH_REGISTER_RECEIVED');
     try {
       const parsed = registerSchema.safeParse(req.body);
       if (!parsed.success) {
         throw new ValidationError('Validation failed', parsed.error.format());
       }
 
+      console.log('AUTH_REGISTER_VALIDATION_OK');
       const { email, password, displayName } = parsed.data;
+      console.log('AUTH_REGISTER_DB_START');
       const session = await this.authService.register(email, password, displayName);
       return res.status(201).json(session);
     } catch (error) {
+      console.log('AUTH_REGISTER_ERROR', error);
       next(error);
     }
   };
