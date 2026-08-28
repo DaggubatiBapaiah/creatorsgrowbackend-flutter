@@ -1,4 +1,4 @@
-﻿import dotenv from 'dotenv';
+import dotenv from 'dotenv';
 import { z } from 'zod';
 
 dotenv.config();
@@ -43,7 +43,7 @@ const parsed = envSchema.safeParse(process.env);
 
 if (!parsed.success) {
   console.error('Configuration validation failed:', JSON.stringify(parsed.error.format(), null, 2));
-  process.exit(1);
+  throw new Error('Configuration validation failed. Check Vercel environment variables.');
 }
 
 export const env = parsed.data;
