@@ -14,7 +14,7 @@ export let boss: any = {
   on: () => {}
 };
 
-if (process.env.NODE_ENV !== 'test') {
+if (process.env.NODE_ENV !== 'test' && !process.env.VERCEL) {
   const PgBoss = require('pg-boss');
   const PgBossClass = PgBoss.PgBoss || PgBoss.default || PgBoss;
   boss = new PgBossClass({
