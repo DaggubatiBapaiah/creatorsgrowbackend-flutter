@@ -3,73 +3,62 @@ import { env } from '../../config/env';
 import { OAuthClient, OAuthProfile, OAuthTokenResponse } from './oauth-client.interface';
 
 export class RealMetaOAuthClient implements OAuthClient {
-  private get appId(): string {
-    return env.INSTAGRAM_APP_ID || '2137859737614991'; // Hardcoded fallback for production as requested
-  }
-  
-  private get appSecret(): string {
-    return env.INSTAGRAM_APP_SECRET || env.META_APP_SECRET;
-  }
-
   getAuthUrl(state: string): string {
+    // We are using Facebook Login for Business to get Instagram Professional accounts.
+    // META_APP_ID MUST be the Facebook App ID from Settings > Basic.
+    // config_id MUST be the Facebook Login for Business Configuration ID.
     const params = new URLSearchParams({
-      client_id: this.appId,
+      client_id: env.META_APP_ID,
       redirect_uri: env.META_REDIRECT_URI,
       response_type: 'code',
-      scope: 'instagram_business_basic,instagram_business_content_publish,instagram_business_manage_comments,instagram_business_manage_messages,instagram_business_manage_insights',
+      config_id: env.META_CONFIG_ID,
       state: state,
     });
-    return `https://www.instagram.com/oauth/authorize?${params.toString()}`;
+    return `https://www.facebook.com/v19.0/dialog/oauth?${params.toString()}`;
   }
 
   async exchangeCode(code: string): Promise<OAuthTokenResponse> {
-    const formData = new URLSearchParams({
-      client_id: this.appId,
-      client_secret: this.appSecret,
-      grant_type: 'authorization_code',
-      redirect_uri: env.META_REDIRECT_URI,
-      code: code,
-    });
-
-    const res = await fetch('https://api.instagram.com/oauth/access_token', {
-      method: 'POST',
-      body: formData,
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-    });
+    const fbUrl = `https://graph.facebook.com/v19.0/oauth/access_token?client_id=${env.META_APP_ID}&redirect_uri=${encodeURIComponent(env.META_REDIRECT_URI)}&client_secret=${env.META_APP_SECRET}&code=${code}`;
+    const fbRes = await fetch(fbUrl);
+    const fbData = await fbRes.json();
     
-    const data = await res.json();
-    
-    if (!res.ok || !data.access_token) {
-      throw new Error(`Instagram Token Exchange Failed: ${data.error_message || data.error?.message || 'Invalid authorization code'}`);
+    if (!fbRes.ok || !fbData.access_token) {
+      throw new Error(`Meta Token Exchange Failed: ${fbData.error?.message || 'Invalid authorization code'}`);
     }
     
     return {
-      accessToken: data.access_token,
-      expiresInSeconds: 5184000, // Short-lived tokens are usually valid for 1 hour, but we mock 60 days here for simplicity unless swapped for long-lived.
+      accessToken: fbData.access_token,
+      expiresInSeconds: fbData.expires_in,
     };
   }
 
   async getProfile(accessToken: string): Promise<OAuthProfile> {
-    // Fetch directly from Instagram Graph API
-    const url = `https://graph.instagram.com/v20.0/me?fields=id,username,profile_picture_url&access_token=${accessToken}`;
-    const response = await fetch(url);
+    // Fetch via Facebook Page Graph API
+    const pagesUrl = `https://graph.facebook.com/v19.0/me/accounts?fields=id,name,instagram_business_account{id,username,profile_picture_url}&access_token=${accessToken}`;
+    const response = await fetch(pagesUrl);
     if (!response || !response.ok) {
-      throw new Error(`Instagram Profile Fetch Failed: HTTP ${response?.status || 'Unknown'}`);
+      throw new Error(`Meta Profile Fetch Failed: HTTP ${response?.status || 'Unknown'}`);
     }
-    
-    const igAccount = await response.json();
+    const data = await response.json();
 
-    if (!igAccount || !igAccount.id) {
-      throw new Error('No connected Instagram account found.');
+    const pages = data.data || [];
+    if (pages.length === 0) {
+      throw new Error('No Facebook Pages found for this user.');
     }
+
+    const pageWithIg = pages.find((p: any) => p.instagram_business_account != null);
+
+    if (!pageWithIg) {
+      throw new Error('No connected Instagram Professional account found on your Facebook Pages.');
+    }
+
+    const igAccount = pageWithIg.instagram_business_account;
 
     return {
       platformAccountId: igAccount.id,
       username: igAccount.username || `ig_${igAccount.id}`,
       profilePictureUrl: igAccount.profile_picture_url || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=150',
-      metadata: { source: 'instagram_login' },
+      metadata: { facebookPageId: pageWithIg.id },
     };
   }
 }
