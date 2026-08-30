@@ -11,6 +11,10 @@ router.delete('/accounts/:id', authenticate, socialController.disconnectAccount)
 // Changed to POST and requires authentication
 router.post('/:platform/connect', authenticate, socialController.connect);
 
+// Webhooks from Meta (no authentication middleware, Meta uses signed requests)
+router.post('/meta/deauthorize', socialController.metaDeauthorize);
+router.post('/meta/data-deletion', socialController.metaDataDeletion);
+
 // Callback remains GET as it's hit by the browser redirect
 // Callback moved to auth.routes.ts
 

@@ -1,4 +1,4 @@
-﻿import { Request, Response, NextFunction } from 'express';
+import { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
 import { env } from '../config/env';
 import { SocialRepository } from '../repositories/social.repository';
@@ -189,6 +189,70 @@ export class SocialController {
       `);
     } catch (error) {
       next(error);
+    }
+  };
+
+  private parseSignedRequest(signedRequest: string, secret: string) {
+    try {
+      const [encodedSig, payload] = signedRequest.split('.', 2);
+      const decodedPayload = Buffer.from(payload, 'base64url').toString('utf8');
+      return JSON.parse(decodedPayload);
+    } catch {
+      return null;
+    }
+  }
+
+  metaDeauthorize = async (req: Request, res: Response) => {
+    try {
+      console.log('[Meta Webhook] Deauthorize request received');
+      const { signed_request } = req.body;
+      if (!signed_request) {
+        return res.status(400).send('Missing signed_request');
+      }
+
+      const payload = this.parseSignedRequest(signed_request, env.INSTAGRAM_APP_SECRET || env.META_APP_SECRET);
+      if (payload && payload.user_id) {
+        // Meta user_id maps to our platform_account_id
+        await this.socialRepository.deleteAccountByPlatformId('INSTAGRAM', payload.user_id);
+        console.log(`[Meta Webhook] Successfully deauthorized and deleted IG account ${payload.user_id}`);
+      }
+      
+      // Meta expects a 200 response
+      return res.status(200).send('OK');
+    } catch (error) {
+      console.error('[Meta Webhook] Deauthorize Error:', error);
+      return res.status(500).send('Internal Error');
+    }
+  };
+
+  metaDataDeletion = async (req: Request, res: Response) => {
+    try {
+      console.log('[Meta Webhook] Data Deletion request received');
+      const { signed_request } = req.body;
+      if (!signed_request) {
+        return res.status(400).send('Missing signed_request');
+      }
+
+      let confirmationCode = 'N/A';
+      let statusUrl = 'N/A';
+
+      const payload = this.parseSignedRequest(signed_request, env.INSTAGRAM_APP_SECRET || env.META_APP_SECRET);
+      if (payload && payload.user_id) {
+        await this.socialRepository.deleteAccountByPlatformId('INSTAGRAM', payload.user_id);
+        
+        confirmationCode = crypto.randomBytes(8).toString('hex');
+        statusUrl = `${env.META_REDIRECT_URI.replace('/api/v1/auth/meta/callback', '')}/data-deletion-status?code=${confirmationCode}`;
+        
+        console.log(`[Meta Webhook] Successfully processed data deletion for IG account ${payload.user_id}`);
+      }
+
+      return res.status(200).json({
+        url: statusUrl,
+        confirmation_code: confirmationCode
+      });
+    } catch (error) {
+      console.error('[Meta Webhook] Data Deletion Error:', error);
+      return res.status(500).send('Internal Error');
     }
   };
 }

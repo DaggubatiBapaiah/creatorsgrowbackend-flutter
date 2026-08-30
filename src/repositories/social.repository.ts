@@ -96,6 +96,12 @@ export class SocialRepository {
     return (rowCount ?? 0) > 0;
   }
 
+  async deleteAccountByPlatformId(platform: string, platformAccountId: string): Promise<boolean> {
+    const query = 'DELETE FROM social_accounts WHERE platform = $1 AND platform_account_id = $2';
+    const { rowCount } = await pool.query(query, [platform.toUpperCase(), platformAccountId]);
+    return (rowCount ?? 0) > 0;
+  }
+
   // --- OAuth State Management ---
 
   async createOAuthState(state: string, userId: string, platform: string, expiresInMs: number): Promise<void> {
