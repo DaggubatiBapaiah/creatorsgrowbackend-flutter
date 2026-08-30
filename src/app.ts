@@ -1,4 +1,4 @@
-﻿import express from 'express';
+import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import { env } from './config/env';
@@ -15,6 +15,7 @@ import mediaKitRouter from './routes/mediakit.routes';
 import billingRouter from './routes/billing.routes';
 import inboxRouter from './routes/inbox.routes';
 import notificationRouter from './routes/notification.routes';
+import legalRouter from './routes/legal.routes';
 import path from 'path';
 import { errorHandler } from './middleware/error.middleware';
 
@@ -29,6 +30,7 @@ app.use(
 );
 app.use(express.json({ limit: '10mb' }));
 
+app.use('/', legalRouter);
 app.use('/health', healthRouter);
 app.use('/api/v1/health', healthRouter);
 app.use('/api/v1/auth', authRouter);
