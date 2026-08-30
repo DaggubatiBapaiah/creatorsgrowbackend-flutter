@@ -45,7 +45,7 @@ export class MetaPublisher implements SocialPublisher {
       
       const mediaUrl = mediaUrls[0];
       
-      const createContainerUrl = `https://graph.facebook.com/v19.0/${igUserId}/media`;
+      const createContainerUrl = `https://graph.instagram.com/v20.0/${igUserId}/media`;
       const containerBody = new URLSearchParams();
       if (isVideo) {
         containerBody.append('media_type', 'REELS');
@@ -72,7 +72,7 @@ export class MetaPublisher implements SocialPublisher {
       
       const creationId = containerData.id;
 
-      const publishUrl = `https://graph.facebook.com/v19.0/${igUserId}/media_publish`;
+      const publishUrl = `https://graph.instagram.com/v20.0/${igUserId}/media_publish`;
       const publishBody = new URLSearchParams();
       publishBody.append('creation_id', creationId);
       publishBody.append('access_token', accessToken);

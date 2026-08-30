@@ -44,7 +44,7 @@ export class InstagramAdapter implements InboxAdapter {
     }
 
     try {
-      const res = await fetch(`https://graph.facebook.com/v19.0/${igBusinessId}/media?fields=comments{id,text,username,timestamp,like_count}&access_token=${accessToken}`);
+      const res = await fetch(`https://graph.instagram.com/v20.0/${igBusinessId}/media?fields=comments{id,text,username,timestamp,like_count}&access_token=${accessToken}`);
       if (!res.ok) throw new Error('Failed to fetch Instagram comments');
       const data = await res.json();
       
@@ -77,7 +77,7 @@ export class InstagramAdapter implements InboxAdapter {
     const accessToken = decrypt(account.access_token);
     if (accessToken === 'mock') return 'ig_reply_mock_' + Math.random().toString(36).substring(7);
 
-    const res = await fetch(`https://graph.facebook.com/v19.0/${commentId}/replies?message=${encodeURIComponent(text)}&access_token=${accessToken}`, {
+    const res = await fetch(`https://graph.instagram.com/v20.0/${commentId}/replies?message=${encodeURIComponent(text)}&access_token=${accessToken}`, {
       method: 'POST'
     });
     if (!res.ok) throw { status: 502, message: 'Failed to post Instagram reply' };
@@ -90,7 +90,7 @@ export class InstagramAdapter implements InboxAdapter {
     if (accessToken === 'mock') return true;
 
     // Instagram comment like is a POST or DELETE request to commentId/likes
-    const res = await fetch(`https://graph.facebook.com/v19.0/${commentId}/user_likes?access_token=${accessToken}`, {
+    const res = await fetch(`https://graph.instagram.com/v20.0/${commentId}/user_likes?access_token=${accessToken}`, {
       method: like ? 'POST' : 'DELETE'
     });
     return res.ok;
@@ -100,7 +100,7 @@ export class InstagramAdapter implements InboxAdapter {
     const accessToken = decrypt(account.access_token);
     if (accessToken === 'mock') return true;
 
-    const res = await fetch(`https://graph.facebook.com/v19.0/${commentId}?hide=${hide}&access_token=${accessToken}`, {
+    const res = await fetch(`https://graph.instagram.com/v20.0/${commentId}?hide=${hide}&access_token=${accessToken}`, {
       method: 'POST'
     });
     return res.ok;
@@ -110,7 +110,7 @@ export class InstagramAdapter implements InboxAdapter {
     const accessToken = decrypt(account.access_token);
     if (accessToken === 'mock') return true;
 
-    const res = await fetch(`https://graph.facebook.com/v19.0/${commentId}?access_token=${accessToken}`, {
+    const res = await fetch(`https://graph.instagram.com/v20.0/${commentId}?access_token=${accessToken}`, {
       method: 'DELETE'
     });
     return res.ok;
