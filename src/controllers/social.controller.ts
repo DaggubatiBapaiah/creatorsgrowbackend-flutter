@@ -76,9 +76,17 @@ export class SocialController {
   };
 
   callback = async (req: Request, res: Response, next: NextFunction) => {
+    const requestId = crypto.randomBytes(4).toString('hex');
+    console.log(`[OAuth Callback] [${requestId}] START platform=${req.params.platform}`);
+    
     try {
       const { platform } = req.params;
       const { code, state, error, error_description } = req.query;
+
+      console.log(`[OAuth Callback] [${requestId}] Query Code received: ${!!code}`);
+      console.log(`[OAuth Callback] [${requestId}] Query State received: ${!!state}`);
+      console.log(`[OAuth Callback] [${requestId}] Query Error received: ${!!error}`);
+      console.log(`[OAuth Callback] [${requestId}] Server Canonical redirect_uri: ${env.META_REDIRECT_URI}`);
 
       if (error) {
         return res.status(400).send(`<h1>Connection Failed</h1><p>${error_description || 'OAuth connection request was cancelled or denied.'}</p>`);
@@ -87,6 +95,13 @@ export class SocialController {
       if (!code || !state) {
         return res.status(400).send('<h1>Bad Request</h1><p>Missing authorization code or verification state.</p>');
       }
+
+      const originalCodeStr = code as string;
+      const hasHashSuffix = originalCodeStr.endsWith('#_');
+      const sanitizedCode = originalCodeStr.replace(/#_$/, '');
+      console.log(`[OAuth Callback] [${requestId}] Code Length: ${originalCodeStr.length}`);
+      console.log(`[OAuth Callback] [${requestId}] Has Hash Suffix: ${hasHashSuffix}`);
+      console.log(`[OAuth Callback] [${requestId}] Sanitized Code Length: ${sanitizedCode.length}`);
 
       const oauthState = await this.socialRepository.consumeOAuthState(state as string);
       
@@ -108,8 +123,13 @@ export class SocialController {
       const userId = oauthState.user_id;
       const client = OAuthClientFactory.getClient(platform);
       
-      const tokenData = await client.exchangeCode(code as string);
+      console.log(`[OAuth Callback] [${requestId}] Starting Token Exchange`);
+      // We pass the exact sanitized code to the client
+      const tokenData = await client.exchangeCode(sanitizedCode);
+      console.log(`[OAuth Callback] [${requestId}] Token Exchange Success`);
+      
       const profile = await client.getProfile(tokenData.accessToken);
+      console.log(`[OAuth Callback] [${requestId}] Profile Fetch Success`);
 
       const encryptedToken = encrypt(tokenData.accessToken);
       const encryptedRefreshToken = tokenData.refreshToken ? encrypt(tokenData.refreshToken) : null;

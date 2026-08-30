@@ -49,9 +49,11 @@ export class RealMetaOAuthClient implements OAuthClient {
       },
     });
     
-    const data = await res.json();
+    const data = await res.json().catch(() => ({}));
     
     if (!res.ok || !data.access_token) {
+      console.error(`[Meta OAuth] Token Exchange Failed. Status: ${res.status}`);
+      console.error(`[Meta OAuth] Upstream Error Data: ${JSON.stringify(data)}`);
       throw new Error(`Instagram Token Exchange Failed: ${data.error_message || data.error?.message || 'Invalid authorization code'}`);
     }
     
