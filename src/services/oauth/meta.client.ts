@@ -23,13 +23,23 @@ export class RealMetaOAuthClient implements OAuthClient {
   }
 
   async exchangeCode(code: string): Promise<OAuthTokenResponse> {
+    // 1. Strip trailing #_ if Meta appended it to the code
+    const cleanCode = code.replace(/#_$/, '');
+
     const formData = new URLSearchParams({
       client_id: this.appId,
       client_secret: this.appSecret,
       grant_type: 'authorization_code',
       redirect_uri: env.META_REDIRECT_URI,
-      code: code,
+      code: cleanCode,
     });
+
+    // Forensic logging
+    console.log('[Meta OAuth] Token Exchange Start');
+    console.log(`[Meta OAuth] Using client_id: ${this.appId}`);
+    console.log(`[Meta OAuth] Using redirect_uri: ${env.META_REDIRECT_URI}`);
+    console.log(`[Meta OAuth] Is INSTAGRAM_APP_SECRET defined? ${!!env.INSTAGRAM_APP_SECRET}`);
+    console.log(`[Meta OAuth] Is META_APP_SECRET defined? ${!!env.META_APP_SECRET}`);
 
     const res = await fetch('https://api.instagram.com/oauth/access_token', {
       method: 'POST',
