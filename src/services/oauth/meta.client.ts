@@ -24,8 +24,14 @@ export class RealMetaOAuthClient implements OAuthClient {
   }
 
   async exchangeCode(code: string): Promise<OAuthTokenResponse> {
-    // 1. Strip trailing #_ if Meta appended it to the code
+    const hasHashSuffix = code.endsWith('#_');
     const cleanCode = code.replace(/#_$/, '');
+    const codeTrimmed = code !== code.trim();
+    const cleaningChangedValue = code !== cleanCode;
+    
+    // Hash codes for safe diagnostic logging
+    const rawHash = crypto.createHash('sha256').update(code).digest('hex').substring(0, 8);
+    const cleanHash = crypto.createHash('sha256').update(cleanCode).digest('hex').substring(0, 8);
 
     const formData = new URLSearchParams({
       client_id: this.appId,
@@ -37,10 +43,16 @@ export class RealMetaOAuthClient implements OAuthClient {
 
     // Forensic logging
     console.log('[Meta OAuth] Token Exchange Start');
+    console.log(`[Meta OAuth] Endpoint: POST https://api.instagram.com/oauth/access_token`);
     console.log(`[Meta OAuth] Using client_id: ${this.appId}`);
-    console.log(`[Meta OAuth] Using redirect_uri: ${env.META_REDIRECT_URI}`);
-    console.log(`[Meta OAuth] Is INSTAGRAM_APP_SECRET defined? ${!!env.INSTAGRAM_APP_SECRET}`);
-    console.log(`[Meta OAuth] Is META_APP_SECRET defined? ${!!env.META_APP_SECRET}`);
+    console.log(`[Meta OAuth] Using redirect_uri: ${env.META_REDIRECT_URI} (Length: ${env.META_REDIRECT_URI.length})`);
+    console.log(`[Meta OAuth] Secret Present: ${!!env.INSTAGRAM_APP_SECRET}`);
+    console.log(`[Meta OAuth] Code Length: ${code.length}`);
+    console.log(`[Meta OAuth] Code Contains #_: ${hasHashSuffix}`);
+    console.log(`[Meta OAuth] Code Contains Whitespace: ${codeTrimmed}`);
+    console.log(`[Meta OAuth] Code Cleaning Changed Value: ${cleaningChangedValue}`);
+    console.log(`[Meta OAuth] SHA-256(Received Code): ${rawHash}`);
+    console.log(`[Meta OAuth] SHA-256(Cleaned Code): ${cleanHash}`);
 
     const res = await fetch('https://api.instagram.com/oauth/access_token', {
       method: 'POST',
