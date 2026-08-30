@@ -12,9 +12,9 @@ export interface User {
 export class UserRepository {
   async createUser(email: string, passwordHash: string, displayName: string): Promise<User> {
     const query = `
-      INSERT INTO users (id, email, password_hash, display_name)
+      INSERT INTO users (id, email, password, "displayName")
       VALUES (gen_random_uuid(), $1, $2, $3)
-      RETURNING id, email, password_hash, display_name, created_at, updated_at
+      RETURNING id, email, password as password_hash, "displayName" as display_name, created_at, updated_at
     `;
     const values = [email.toLowerCase().trim(), passwordHash, displayName];
     const { rows } = await pool.query(query, values);
