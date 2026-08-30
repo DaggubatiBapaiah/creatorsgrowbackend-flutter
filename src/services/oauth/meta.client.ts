@@ -13,10 +13,11 @@ export class RealMetaOAuthClient implements OAuthClient {
 
   getAuthUrl(state: string): string {
     const params = new URLSearchParams({
+      force_reauth: 'true',
       client_id: this.appId,
       redirect_uri: env.META_REDIRECT_URI,
       response_type: 'code',
-      scope: 'instagram_business_basic,instagram_business_content_publish,instagram_business_manage_comments,instagram_business_manage_messages,instagram_business_manage_insights',
+      scope: 'instagram_business_basic,instagram_business_manage_messages,instagram_business_manage_comments,instagram_business_content_publish,instagram_business_manage_insights',
       state: state,
     });
     return `https://www.instagram.com/oauth/authorize?${params.toString()}`;
