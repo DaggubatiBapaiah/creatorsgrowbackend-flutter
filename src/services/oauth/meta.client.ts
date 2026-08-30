@@ -50,7 +50,6 @@ export class RealMetaOAuthClient implements OAuthClient {
     return {
       accessToken: data.access_token,
       expiresInSeconds: 5184000, // Short-lived tokens are usually valid for 1 hour, but we mock 60 days here for simplicity unless swapped for long-lived.
-      metadata: { instagramUserId: data.user_id },
     };
   }
 
