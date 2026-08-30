@@ -26,8 +26,15 @@ export interface OAuthState {
 
 export class SocialRepository {
   async getAccountsByUserId(userId: string): Promise<SocialAccount[]> {
+    console.log('[DB FORENSIC] GET ACCOUNTS START');
+    console.log(`[DB FORENSIC] user_id = ${userId}`);
     const query = 'SELECT * FROM social_accounts WHERE user_id = $1 ORDER BY created_at DESC';
     const { rows } = await pool.query(query, [userId]);
+    console.log(`[DB FORENSIC] rows returned = ${rows.length}`);
+    if (rows.length > 0) {
+      console.log(`[DB FORENSIC] platforms = ${rows.map(r => r.platform).join(', ')}`);
+      console.log(`[DB FORENSIC] usernames = ${rows.map(r => r.username).join(', ')}`);
+    }
     return rows;
   }
 
@@ -55,6 +62,12 @@ export class SocialRepository {
     status: string = 'connected',
     metadata: Record<string, any> | null = null
   ): Promise<SocialAccount> {
+    console.log('[DB FORENSIC] createOrUpdateAccount START');
+    console.log(`[DB FORENSIC] user_id = ${userId}`);
+    console.log(`[DB FORENSIC] platform = ${platform.toUpperCase()}`);
+    console.log(`[DB FORENSIC] platform_account_id = ${platformAccountId}`);
+    console.log(`[DB FORENSIC] username = ${username}`);
+
     const query = `
       INSERT INTO social_accounts (
         id, user_id, platform, platform_account_id, username, 
@@ -86,8 +99,34 @@ export class SocialRepository {
       status,
       metadata,
     ];
-    const { rows } = await pool.query(query, values);
-    return rows[0];
+    
+    try {
+      const { rows } = await pool.query(query, values);
+      const row = rows[0];
+      console.log('[DB FORENSIC] INSERT/UPDATE SUCCESS');
+      console.log(`[DB FORENSIC] returned row id = ${row.id}`);
+      console.log(`[DB FORENSIC] returned user_id = ${row.user_id}`);
+      console.log(`[DB FORENSIC] returned platform = ${row.platform}`);
+      
+      // IMMEDIATE POST-SAVE READ
+      console.log('[DB FORENSIC] POST-SAVE READ START');
+      const verifyQuery = 'SELECT * FROM social_accounts WHERE user_id = $1 ORDER BY created_at DESC';
+      const verifyRes = await pool.query(verifyQuery, [userId]);
+      console.log(`[DB FORENSIC] rows found = ${verifyRes.rows.length}`);
+      if (verifyRes.rows.length > 0) {
+        console.log(`[DB FORENSIC] returned user_id = ${verifyRes.rows[0].user_id}`);
+        console.log(`[DB FORENSIC] returned platform = ${verifyRes.rows[0].platform}`);
+        console.log(`[DB FORENSIC] returned username = ${verifyRes.rows[0].username}`);
+      }
+      
+      return row;
+    } catch (error: any) {
+      console.log('[DB FORENSIC] INSERT/UPDATE FAILED');
+      console.log(`[DB FORENSIC] error type = ${error.name}`);
+      console.log(`[DB FORENSIC] error code = ${error.code}`);
+      console.log(`[DB FORENSIC] error message = ${error.message}`);
+      throw error;
+    }
   }
 
   async deleteAccount(id: string, userId: string): Promise<boolean> {
