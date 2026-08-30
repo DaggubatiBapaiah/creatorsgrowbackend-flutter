@@ -168,48 +168,12 @@ export class SocialController {
               flex-direction: column;
               align-items: center;
               justify-content: center;
-              height: 100vh;
-              margin: 0;
-              padding: 24px;
-              text-align: center;
-            }
-            .card {
-              background-color: #1E293B;
-              border-radius: 16px;
-              padding: 32px;
-              max-width: 400px;
-              box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-            }
-            h1 {
-              color: #10B981;
-              font-size: 24px;
-              margin-top: 16px;
-              margin-bottom: 8px;
-            }
-            p {
-              color: #94A3B8;
-              font-size: 16px;
-              line-height: 1.5;
-            }
-            .icon {
-              font-size: 64px;
-              color: #10B981;
-            }
-          </style>
-        </head>
-        <body>
-          <div class="card">
-            <div class="icon">âœ“</div>
-            <h1>Connection Successful!</h1>
-            <p>Your social account has been connected successfully.</p>
-            <p>You can now close this browser tab and return to the application.</p>
-          </div>
-        </body>
-        </html>
-      `);
+      // Instead of returning HTML, we redirect to the custom app scheme.
+      // This instantly closes the Custom Chrome Tab and returns the user to the Flutter app.
+      res.redirect('creatorsgrow://oauth/callback?status=success');
     } catch (error) {
       console.error('[OAuth Callback Error]', error);
-      res.status(500).send(`<h1>OAuth Failed</h1><p>${error instanceof Error ? error.message : 'Unknown error'}</p>`);
+      res.redirect(`creatorsgrow://oauth/callback?status=error&message=${encodeURIComponent(error instanceof Error ? error.message : 'Unknown error')}`);
     }
   };
 

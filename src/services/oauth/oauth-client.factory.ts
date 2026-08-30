@@ -7,10 +7,11 @@ export class OAuthClientFactory {
     switch (platform.toUpperCase()) {
       case 'INSTAGRAM':
       case 'META':
-      case 'FACEBOOK':
         return metaOAuthClient;
       case 'TIKTOK':
         return tiktokOAuthClient;
+      case 'FACEBOOK':
+        throw new Error('OAuthClient for Facebook is not yet implemented.');
       default:
         throw new Error(`OAuthClient for platform ${platform} is not implemented.`);
     }
