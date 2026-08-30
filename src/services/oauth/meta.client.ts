@@ -11,7 +11,7 @@ export class RealMetaOAuthClient implements OAuthClient {
       client_id: env.META_APP_ID,
       redirect_uri: env.META_REDIRECT_URI,
       response_type: 'code',
-      config_id: env.META_CONFIG_ID || '', 
+      scope: 'instagram_business_basic,instagram_business_content_publish,instagram_business_manage_comments,instagram_business_manage_messages,instagram_business_manage_insights,pages_show_list,pages_read_engagement,business_management,public_profile',
       state: state,
     });
     return `https://www.facebook.com/v19.0/dialog/oauth?${params.toString()}`;
