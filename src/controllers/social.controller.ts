@@ -188,7 +188,8 @@ export class SocialController {
         </html>
       `);
     } catch (error) {
-      next(error);
+      console.error('[OAuth Callback Error]', error);
+      res.status(500).send(`<h1>OAuth Failed</h1><p>${error instanceof Error ? error.message : 'Unknown error'}</p>`);
     }
   };
 

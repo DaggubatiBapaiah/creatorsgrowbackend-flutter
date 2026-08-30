@@ -52,24 +52,27 @@ export class RealMetaOAuthClient implements OAuthClient {
   }
 
   async getProfile(accessToken: string): Promise<OAuthProfile> {
-    // Fetch directly from Instagram Graph API
-    const url = `https://graph.instagram.com/v20.0/me?fields=id,username,profile_picture_url&access_token=${accessToken}`;
+    // Fetch directly from Instagram Graph API (Instagram Login)
+    // Note: profile_picture_url is NOT available on the base /me endpoint for Instagram Login.
+    const url = `https://graph.instagram.com/v20.0/me?fields=id,username,account_type&access_token=${accessToken}`;
     const response = await fetch(url);
     if (!response || !response.ok) {
-      throw new Error(`Instagram Profile Fetch Failed: HTTP ${response?.status || 'Unknown'}`);
+      const errData = await response.text().catch(() => '');
+      throw new Error(`Instagram Profile Fetch Failed: HTTP ${response?.status || 'Unknown'} - ${errData}`);
     }
     
     const igAccount = await response.json();
 
     if (!igAccount || !igAccount.id) {
-      throw new Error('No connected Instagram account found.');
+      throw new Error('No connected Instagram account found in response.');
     }
 
     return {
       platformAccountId: igAccount.id,
       username: igAccount.username || `ig_${igAccount.id}`,
-      profilePictureUrl: igAccount.profile_picture_url || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=150',
-      metadata: { source: 'instagram_login' },
+      // profile_picture_url is not returned by the API, so we provide a default avatar
+      profilePictureUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=150',
+      metadata: { source: 'instagram_login', accountType: igAccount.account_type },
     };
   }
 }
