@@ -11,12 +11,13 @@ export interface User {
 
 export class UserRepository {
   async createUser(email: string, passwordHash: string, displayName: string): Promise<User> {
+    const username = email.split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '') + Math.random().toString(36).substring(2, 6);
     const query = `
-      INSERT INTO users (id, email, password_hash, display_name)
-      VALUES (gen_random_uuid(), $1, $2, $3)
+      INSERT INTO users (id, username, email, password_hash, display_name)
+      VALUES (gen_random_uuid(), $1, $2, $3, $4)
       RETURNING id, email, password_hash, display_name, created_at, updated_at
     `;
-    const values = [email.toLowerCase().trim(), passwordHash, displayName];
+    const values = [username, email.toLowerCase().trim(), passwordHash, displayName];
     const { rows } = await pool.query(query, values);
     return rows[0];
   }
