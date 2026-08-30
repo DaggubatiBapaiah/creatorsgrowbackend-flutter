@@ -4,7 +4,7 @@ import { OAuthClient, OAuthProfile, OAuthTokenResponse } from './oauth-client.in
 
 export class RealMetaOAuthClient implements OAuthClient {
   private get appId(): string {
-    return env.INSTAGRAM_APP_ID || env.META_APP_ID;
+    return env.INSTAGRAM_APP_ID || '2137859737614991'; // Hardcoded fallback for production as requested
   }
   
   private get appSecret(): string {
@@ -13,8 +13,6 @@ export class RealMetaOAuthClient implements OAuthClient {
 
   getAuthUrl(state: string): string {
     const params = new URLSearchParams({
-      enable_fb_login: '0',
-      force_authentication: '1',
       client_id: this.appId,
       redirect_uri: env.META_REDIRECT_URI,
       response_type: 'code',
