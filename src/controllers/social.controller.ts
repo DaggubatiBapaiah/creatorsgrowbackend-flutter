@@ -1,4 +1,4 @@
-﻿import { Request, Response, NextFunction } from 'express';
+import { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
 import { env } from '../config/env';
 import { SocialRepository } from '../repositories/social.repository';
@@ -55,8 +55,8 @@ export class SocialController {
         res.status(403).json({ error: { message: 'Social accounts limit reached for your plan. Please upgrade.' } });
         return;
       }
-    } catch (e) {
-      return next(e);
+    } catch (e: any) {
+      return res.status(500).json({ error: e.message, detail: e.detail });
     }
     try {
       const userId = req.user!.id;
@@ -70,8 +70,8 @@ export class SocialController {
 
       const authUrl = client.getAuthUrl(state);
       return res.status(200).json({ authUrl });
-    } catch (error) {
-      next(error);
+    } catch (error: any) {
+      return res.status(500).json({ error: error.message, detail: error.detail });
     }
   };
 
