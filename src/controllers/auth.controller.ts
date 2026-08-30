@@ -30,9 +30,9 @@ export class AuthController {
       console.log('AUTH_REGISTER_DB_START');
       const session = await this.authService.register(email, password, displayName);
       return res.status(201).json(session);
-    } catch (error: any) {
+    } catch (error) {
       console.log('AUTH_REGISTER_ERROR', error);
-      res.status(500).json({ error: error.message, detail: error.detail });
+      next(error);
     }
   };
 
