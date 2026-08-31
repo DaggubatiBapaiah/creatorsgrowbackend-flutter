@@ -13,6 +13,11 @@ export class SocialController {
   getAccounts = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const userId = req.user!.id;
+      const userIdHash = crypto.createHash('sha256').update(userId).digest('hex');
+      console.log(`[ACCOUNTS FORENSIC] REQUEST START`);
+      console.log(`[ACCOUNTS FORENSIC] Authorization header present = ${!!req.headers.authorization}`);
+      console.log(`[ACCOUNTS FORENSIC] userId hash = ${userIdHash}`);
+
       const accounts = await this.socialRepository.getAccountsByUserId(userId);
       
       const safeAccounts = accounts.map((acc) => ({
@@ -24,8 +29,14 @@ export class SocialController {
         status: acc.status,
       }));
 
+      const instagramCount = safeAccounts.filter(a => a.platform === 'instagram').length;
+      console.log(`[ACCOUNTS FORENSIC] accounts count = ${safeAccounts.length}`);
+      console.log(`[ACCOUNTS FORENSIC] instagram count = ${instagramCount}`);
+      console.log(`[ACCOUNTS FORENSIC] HTTP STATUS = 200`);
+
       return res.status(200).json({ accounts: safeAccounts });
     } catch (error) {
+      console.log(`[ACCOUNTS FORENSIC] HTTP STATUS = 500`);
       next(error);
     }
   };
@@ -61,6 +72,9 @@ export class SocialController {
     try {
       const userId = req.user!.id;
       const { platform } = req.params;
+
+      const userIdHash = crypto.createHash('sha256').update(userId).digest('hex');
+      console.log(`[OAUTH FORENSIC] CONNECT USER HASH = ${userIdHash}`);
 
       const client = OAuthClientFactory.getClient(platform);
 
@@ -121,6 +135,9 @@ export class SocialController {
       }
 
       const userId = oauthState.user_id;
+      const userIdHash = crypto.createHash('sha256').update(userId).digest('hex');
+      console.log(`[OAUTH FORENSIC] [${requestId}] OAUTH STATE USER HASH = ${userIdHash}`);
+
       const client = OAuthClientFactory.getClient(platform);
       
       console.log(`[OAuth Callback] [${requestId}] Starting Token Exchange`);
@@ -151,6 +168,10 @@ export class SocialController {
         'connected',
         profile.metadata
       );
+
+      console.log(`[OAUTH FORENSIC] [${requestId}] database save = PASS`);
+      const postSaveAccounts = await this.socialRepository.getAccountsByUserId(userId);
+      console.log(`[OAUTH FORENSIC] [${requestId}] post-save account count = ${postSaveAccounts.length}`);
 
       // Instead of returning HTML, we redirect to the custom app scheme.
       // This instantly closes the Custom Chrome Tab and returns the user to the Flutter app.
