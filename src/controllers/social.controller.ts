@@ -152,25 +152,9 @@ export class SocialController {
         profile.metadata
       );
 
-      res.setHeader('Content-Type', 'text/html');
-      return res.send(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <title>Connection Successful</title>
-          <meta name="viewport" content="width=device-width, initial-scale=1">
-          <style>
-            body {
-              background-color: #0F172A;
-              color: #F8FAFC;
-              font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-              display: flex;
-              flex-direction: column;
-              align-items: center;
-              justify-content: center;
       // Instead of returning HTML, we redirect to the custom app scheme.
       // This instantly closes the Custom Chrome Tab and returns the user to the Flutter app.
-      res.redirect('creatorsgrow://oauth/callback?status=success');
+      return res.redirect('creatorsgrow://oauth/callback?status=success');
     } catch (error) {
       console.error('[OAuth Callback Error]', error);
       res.redirect(`creatorsgrow://oauth/callback?status=error&message=${encodeURIComponent(error instanceof Error ? error.message : 'Unknown error')}`);
