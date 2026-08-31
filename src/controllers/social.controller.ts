@@ -110,7 +110,11 @@ export class SocialController {
         return res.status(400).send('<h1>Bad Request</h1><p>Missing authorization code or verification state.</p>');
       }
 
-      const originalCodeStr = code as string;
+      if (typeof code !== 'string') {
+        return res.status(400).send('<h1>Bad Request</h1><p>Invalid authorization code format.</p>');
+      }
+
+      const originalCodeStr = code;
       const hasHashSuffix = originalCodeStr.endsWith('#_');
       const sanitizedCode = originalCodeStr.replace(/#_$/, '');
       console.log(`[OAuth Callback] [${requestId}] Code Length: ${originalCodeStr.length}`);
