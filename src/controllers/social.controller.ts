@@ -173,11 +173,19 @@ export class SocialController {
       const postSaveAccounts = await this.socialRepository.getAccountsByUserId(userId);
       console.log(`[OAUTH FORENSIC] [${requestId}] post-save account count = ${postSaveAccounts.length}`);
 
-      // This uses Android App Links (HTTPS) to instantly return to the app
-      return res.redirect('https://creatorsgrowbackend-flutter.vercel.app/oauth/callback?status=success');
+      // This uses Android App Links (HTTPS) via Chrome's intent:// scheme to instantly return to the app
+      // This bypasses Chrome's same-site redirect suppression.
+      return res.redirect(
+        'intent://creatorsgrowbackend-flutter.vercel.app/oauth/callback?status=success' +
+        '#Intent;scheme=https;package=com.example.creators_grow;end'
+      );
     } catch (error) {
       console.error('[OAuth Callback Error]', error);
-      res.redirect(`https://creatorsgrowbackend-flutter.vercel.app/oauth/callback?status=error&message=${encodeURIComponent(error instanceof Error ? error.message : 'Unknown error')}`);
+      res.redirect(
+        'intent://creatorsgrowbackend-flutter.vercel.app/oauth/callback?status=error&message=' +
+        encodeURIComponent(error instanceof Error ? error.message : 'Unknown error') +
+        '#Intent;scheme=https;package=com.example.creators_grow;end'
+      );
     }
   };
 
