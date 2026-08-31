@@ -173,12 +173,11 @@ export class SocialController {
       const postSaveAccounts = await this.socialRepository.getAccountsByUserId(userId);
       console.log(`[OAUTH FORENSIC] [${requestId}] post-save account count = ${postSaveAccounts.length}`);
 
-      // Instead of returning HTML, we redirect to the custom app scheme.
-      // This instantly closes the Custom Chrome Tab and returns the user to the Flutter app.
-      return res.redirect('creatorsgrow://oauth/callback?status=success');
+      // This uses Android App Links (HTTPS) to instantly return to the app
+      return res.redirect('https://creatorsgrowbackend-flutter.vercel.app/oauth/callback?status=success');
     } catch (error) {
       console.error('[OAuth Callback Error]', error);
-      res.redirect(`creatorsgrow://oauth/callback?status=error&message=${encodeURIComponent(error instanceof Error ? error.message : 'Unknown error')}`);
+      res.redirect(`https://creatorsgrowbackend-flutter.vercel.app/oauth/callback?status=error&message=${encodeURIComponent(error instanceof Error ? error.message : 'Unknown error')}`);
     }
   };
 
