@@ -56,13 +56,26 @@ app.get('/.well-known/assetlinks.json', (req, res) => {
       "namespace": "android_app",
       "package_name": "com.example.creators_grow",
       "sha256_cert_fingerprints": [
-        "7B:9E:24:18:28:52:53:01:71:EB:7D:01:FF:17:19:2A:95:C9:1D:21:84:F3:D5:78:D7:DC:2A:62:5A:ED:D1:01"
+        "7B:9E:24:18:28:52:53:01:71:EB:7D:01:FF:17:19:2A:95:C9:1D:21:84:F3:D5:78:D7:DC:2A:62:5A:ED:D1:01",
+        "2D:62:F8:69:E6:DE:33:7D:F1:F3:CD:49:9E:89:19:63:82:E2:47:56:03:96:7E:E1:3D:9F:7B:50:47:C4:5A:F6"
       ]
     }
   }]);
 });
 
 app.get('/oauth/callback', (req, res) => {
+  const status = req.query.status as string;
+  const message = req.query.message as string;
+  
+  const isSuccess = status === 'success';
+  const title = isSuccess ? 'Connection Successful' : 'Connection Failed';
+  const desc = isSuccess 
+    ? 'Your account has been connected successfully.' 
+    : (message ? `Error: ${message}` : 'Failed to connect account.');
+  
+  const color = isSuccess ? '#2e7d32' : '#d32f2f';
+  const appLinkUrl = `https://app.creatorsgrow.co.in/oauth/callback?status=${status || 'unknown'}${message ? `&message=${encodeURIComponent(message)}` : ''}`;
+
   res.send(`
     <html>
       <head>
@@ -71,13 +84,14 @@ app.get('/oauth/callback', (req, res) => {
       </head>
       <body style="display:flex; justify-content:center; align-items:center; height:100vh; background-color:#0F172A; color:white; font-family:sans-serif; text-align:center;">
         <div>
-          <h2>Connection Successful</h2>
-          <p style="color:#94A3B8;">You can now close this window and return to the app.</p>
-          <a href="creatorsgrow://oauth/callback?status=success" style="display:inline-block; margin-top:20px; padding:12px 24px; background-color:#6366F1; color:white; text-decoration:none; border-radius:8px; font-weight:bold;">Return to App</a>
+          <h2 style="color:\${color}">\${title}</h2>
+          <p style="color:#94A3B8;">\${desc}</p>
+          <p style="color:#94A3B8; margin-top: 20px;">You can now close this window and return to the app.</p>
+          <a href="\${appLinkUrl}" style="display:inline-block; margin-top:20px; padding:12px 24px; background-color:\${color}; color:white; text-decoration:none; border-radius:8px; font-weight:bold;">Return to App</a>
         </div>
       </body>
     </html>
-  `);
+  \`);
 });
 
 app.use(errorHandler);

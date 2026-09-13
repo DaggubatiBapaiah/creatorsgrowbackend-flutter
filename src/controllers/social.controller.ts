@@ -177,19 +177,76 @@ export class SocialController {
       const postSaveAccounts = await this.socialRepository.getAccountsByUserId(userId);
       console.log(`[OAUTH FORENSIC] [${requestId}] post-save account count = ${postSaveAccounts.length}`);
 
-      // This uses Android App Links (HTTPS) via Chrome's intent:// scheme to instantly return to the app
-      // This bypasses Chrome's same-site redirect suppression.
-      return res.redirect(
-        'intent://creatorsgrowbackend-flutter.vercel.app/oauth/callback?status=success' +
-        '#Intent;scheme=https;package=com.example.creators_grow;end'
-      );
+      // This uses Android App Links (HTTPS) to return to the app.
+      // We return an HTML page that triggers the redirect so that Chrome doesn't suppress it.
+      const appLinkUrl = 'https://app.creatorsgrow.co.in/oauth/callback?status=success';
+      const successHtml = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Authentication Successful</title>
+  <meta http-equiv="refresh" content="0;url=${appLinkUrl}">
+  <script>
+    window.onload = function() {
+      window.location.replace('${appLinkUrl}');
+    }
+  </script>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; background-color: #f8f9fa; }
+    .card { background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); text-align: center; max-width: 400px; width: 90%; }
+    h1 { color: #2e7d32; margin-top: 0; }
+    p { color: #666; margin-bottom: 2rem; }
+    .btn { display: inline-block; background-color: #2e7d32; color: white; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: bold; width: 100%; box-sizing: border-box; }
+    .loader { border: 4px solid #f3f3f3; border-top: 4px solid #2e7d32; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; margin: 0 auto 1rem; }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="loader"></div>
+    <h1>Connected!</h1>
+    <p>Successfully connected your account. Returning to CreatorsGrow...</p>
+    <a href="${appLinkUrl}" class="btn">Return to App</a>
+  </div>
+</body>
+</html>`;
+      return res.status(200).send(successHtml);
     } catch (error) {
       console.error('[OAuth Callback Error]', error);
-      res.redirect(
-        'intent://creatorsgrowbackend-flutter.vercel.app/oauth/callback?status=error&message=' +
-        encodeURIComponent(error instanceof Error ? error.message : 'Unknown error') +
-        '#Intent;scheme=https;package=com.example.creators_grow;end'
-      );
+      const errorMsg = encodeURIComponent(error instanceof Error ? error.message : 'Unknown error');
+      const errorUrl = \`https://app.creatorsgrow.co.in/oauth/callback?status=error&message=\${errorMsg}\`;
+      const errorHtml = \`
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Authentication Failed</title>
+  <meta http-equiv="refresh" content="0;url=\${errorUrl}">
+  <script>
+    window.onload = function() {
+      window.location.replace('\${errorUrl}');
+    }
+  </script>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; background-color: #f8f9fa; }
+    .card { background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); text-align: center; max-width: 400px; width: 90%; }
+    h1 { color: #d32f2f; margin-top: 0; }
+    p { color: #666; margin-bottom: 2rem; }
+    .btn { display: inline-block; background-color: #d32f2f; color: white; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: bold; width: 100%; box-sizing: border-box; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Connection Failed</h1>
+    <p>Could not connect your account. Returning to CreatorsGrow...</p>
+    <a href="\${errorUrl}" class="btn">Return to App</a>
+  </div>
+</body>
+</html>\`;
+      return res.status(200).send(errorHtml);
     }
   };
 
