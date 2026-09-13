@@ -216,18 +216,18 @@ export class SocialController {
     } catch (error) {
       console.error('[OAuth Callback Error]', error);
       const errorMsg = encodeURIComponent(error instanceof Error ? error.message : 'Unknown error');
-      const errorUrl = \`https://app.creatorsgrow.co.in/oauth/callback?status=error&message=\${errorMsg}\`;
-      const errorHtml = \`
+      const errorUrl = `https://app.creatorsgrow.co.in/oauth/callback?status=error&message=${errorMsg}`;
+      const errorHtml = `
 <!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Authentication Failed</title>
-  <meta http-equiv="refresh" content="0;url=\${errorUrl}">
+  <meta http-equiv="refresh" content="0;url=${errorUrl}">
   <script>
     window.onload = function() {
-      window.location.replace('\${errorUrl}');
+      window.location.replace('${errorUrl}');
     }
   </script>
   <style>
@@ -242,10 +242,10 @@ export class SocialController {
   <div class="card">
     <h1>Connection Failed</h1>
     <p>Could not connect your account. Returning to CreatorsGrow...</p>
-    <a href="\${errorUrl}" class="btn">Return to App</a>
+    <a href="${errorUrl}" class="btn">Return to App</a>
   </div>
 </body>
-</html>\`;
+</html>`;
       return res.status(200).send(errorHtml);
     }
   };

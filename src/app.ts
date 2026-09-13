@@ -84,14 +84,14 @@ app.get('/oauth/callback', (req, res) => {
       </head>
       <body style="display:flex; justify-content:center; align-items:center; height:100vh; background-color:#0F172A; color:white; font-family:sans-serif; text-align:center;">
         <div>
-          <h2 style="color:\${color}">\${title}</h2>
-          <p style="color:#94A3B8;">\${desc}</p>
+          <h2 style="color:${color}">${title}</h2>
+          <p style="color:#94A3B8;">${desc}</p>
           <p style="color:#94A3B8; margin-top: 20px;">You can now close this window and return to the app.</p>
-          <a href="\${appLinkUrl}" style="display:inline-block; margin-top:20px; padding:12px 24px; background-color:\${color}; color:white; text-decoration:none; border-radius:8px; font-weight:bold;">Return to App</a>
+          <a href="${appLinkUrl}" style="display:inline-block; margin-top:20px; padding:12px 24px; background-color:${color}; color:white; text-decoration:none; border-radius:8px; font-weight:bold;">Return to App</a>
         </div>
       </body>
     </html>
-  \`);
+  `);
 });
 
 app.use(errorHandler);
