@@ -12,7 +12,7 @@ export class InstagramAdapter implements InboxAdapter {
     }
 
     // Live API fetch:
-    // GET /v19.0/{ig-user-id}/media?fields=comments{id,text,username,timestamp,like_count,replies{id,text,username}}
+    // GET /v25.0/{ig-user-id}/media?fields=comments{id,text,username,timestamp,like_count,replies{id,text,username}}
     // For test/dev sandbox logic, we simulate incoming real comments if real token isn't present
     if (accessToken === 'mock') {
       return [

@@ -12,26 +12,30 @@ describe('RealMetaOAuthClient', () => {
     it('should generate a valid Facebook Login for Business authorization URL', () => {
       const state = 'test_state_123';
       const url = client.getAuthUrl(state);
-      expect(url).toContain('https://www.facebook.com/v19.0/dialog/oauth');
+      expect(url).toContain('https://www.facebook.com/v25.0/dialog/oauth');
       expect(url).toContain('client_id=' + env.META_APP_ID);
       expect(url).toContain('redirect_uri=');
       expect(url).toContain('config_id=' + env.META_CONFIG_ID);
       expect(url).toContain('state=test_state_123');
     });
   });
+
   describe('exchangeCode', () => {
     it('should exchange code for access token successfully', async () => {
       (global.fetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => ({ access_token: 'long_token', expires_in: 5184000 }),
       });
+
       const response = await client.exchangeCode('valid_code');
+
       expect(response.accessToken).toBe('long_token');
       expect(response.expiresInSeconds).toBe(5184000);
       expect(global.fetch).toHaveBeenCalledTimes(1);
-      expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('https://graph.facebook.com/v19.0/oauth/access_token'));
+      expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('https://graph.facebook.com/v25.0/oauth/access_token'));
     });
   });
+
   describe('getProfile', () => {
     it('should fetch Instagram profile via Facebook Page Graph API', async () => {
       (global.fetch as jest.Mock).mockResolvedValueOnce({

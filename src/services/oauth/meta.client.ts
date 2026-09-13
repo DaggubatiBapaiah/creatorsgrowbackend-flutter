@@ -4,100 +4,88 @@ import { OAuthClient, OAuthProfile, OAuthTokenResponse } from './oauth-client.in
 
 export class RealMetaOAuthClient implements OAuthClient {
   private get appId(): string {
-    return env.INSTAGRAM_APP_ID || '2137859737614991'; // Must use Instagram App ID
+    return env.META_APP_ID;
   }
   
   private get appSecret(): string {
-    return env.INSTAGRAM_APP_SECRET || env.META_APP_SECRET;
+    return env.META_APP_SECRET;
+  }
+
+  private get configId(): string {
+    return env.META_CONFIG_ID;
   }
 
   getAuthUrl(state: string): string {
     const params = new URLSearchParams({
-      force_reauth: 'true',
       client_id: this.appId,
+      config_id: this.configId,
       redirect_uri: env.META_REDIRECT_URI,
       response_type: 'code',
-      scope: 'instagram_business_basic,instagram_business_manage_messages,instagram_business_manage_comments,instagram_business_content_publish,instagram_business_manage_insights',
       state: state,
     });
-    return `https://www.instagram.com/oauth/authorize?${params.toString()}`;
+    return `https://www.facebook.com/v25.0/dialog/oauth?${params.toString()}`;
   }
 
   async exchangeCode(code: string): Promise<OAuthTokenResponse> {
-    const hasHashSuffix = code.endsWith('#_');
     const cleanCode = code.replace(/#_$/, '');
-    const codeTrimmed = code !== code.trim();
-    const cleaningChangedValue = code !== cleanCode;
     
-    // Hash codes for safe diagnostic logging
-    const rawHash = crypto.createHash('sha256').update(code).digest('hex').substring(0, 8);
-    const cleanHash = crypto.createHash('sha256').update(cleanCode).digest('hex').substring(0, 8);
-
-    const formData = new URLSearchParams({
+    const params = new URLSearchParams({
       client_id: this.appId,
       client_secret: this.appSecret,
-      grant_type: 'authorization_code',
       redirect_uri: env.META_REDIRECT_URI,
       code: cleanCode,
     });
 
-    // Forensic logging
-    console.log('[Meta OAuth] Token Exchange Start');
-    console.log(`[Meta OAuth] Endpoint: POST https://api.instagram.com/oauth/access_token`);
-    console.log(`[Meta OAuth] Using client_id: ${this.appId}`);
-    console.log(`[Meta OAuth] Using redirect_uri: ${env.META_REDIRECT_URI} (Length: ${env.META_REDIRECT_URI.length})`);
-    console.log(`[Meta OAuth] Secret Present: ${!!env.INSTAGRAM_APP_SECRET}`);
-    console.log(`[Meta OAuth] Code Length: ${code.length}`);
-    console.log(`[Meta OAuth] Code Contains #_: ${hasHashSuffix}`);
-    console.log(`[Meta OAuth] Code Contains Whitespace: ${codeTrimmed}`);
-    console.log(`[Meta OAuth] Code Cleaning Changed Value: ${cleaningChangedValue}`);
-    console.log(`[Meta OAuth] SHA-256(Received Code): ${rawHash}`);
-    console.log(`[Meta OAuth] SHA-256(Cleaned Code): ${cleanHash}`);
+    console.log(`[Meta OAuth] Endpoint: GET https://graph.facebook.com/v25.0/oauth/access_token`);
 
-    const res = await fetch('https://api.instagram.com/oauth/access_token', {
-      method: 'POST',
-      body: formData,
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-    });
-    
+    const res = await fetch(`https://graph.facebook.com/v25.0/oauth/access_token?${params.toString()}`);
     const data = await res.json().catch(() => ({}));
     
     if (!res.ok || !data.access_token) {
       console.error(`[Meta OAuth] Token Exchange Failed. Status: ${res.status}`);
       console.error(`[Meta OAuth] Upstream Error Data: ${JSON.stringify(data)}`);
-      throw new Error(`Instagram Token Exchange Failed: ${data.error_message || data.error?.message || 'Invalid authorization code'}`);
+      throw new Error(`Meta Token Exchange Failed: ${data.error?.message || 'Invalid authorization code'}`);
     }
     
     return {
       accessToken: data.access_token,
-      expiresInSeconds: 5184000, // Short-lived tokens are usually valid for 1 hour, but we mock 60 days here for simplicity unless swapped for long-lived.
+      expiresInSeconds: data.expires_in || 5184000,
     };
   }
 
   async getProfile(accessToken: string): Promise<OAuthProfile> {
-    // Fetch directly from Instagram Graph API (Instagram Login)
-    // Note: profile_picture_url is NOT available on the base /me endpoint for Instagram Login.
-    const url = `https://graph.instagram.com/v20.0/me?fields=id,username,account_type&access_token=${accessToken}`;
+    // 1. Get Facebook Pages and their connected Instagram Business Accounts
+    const url = `https://graph.facebook.com/v25.0/me/accounts?fields=id,name,instagram_business_account{id,username,profile_picture_url}&access_token=${accessToken}`;
     const response = await fetch(url);
     if (!response || !response.ok) {
       const errData = await response.text().catch(() => '');
-      throw new Error(`Instagram Profile Fetch Failed: HTTP ${response?.status || 'Unknown'} - ${errData}`);
+      throw new Error(`Meta Pages Fetch Failed: HTTP ${response?.status || 'Unknown'} - ${errData}`);
     }
     
-    const igAccount = await response.json();
+    const pagesData = await response.json();
+    const pages = pagesData.data || [];
+
+    // 2. Find the first page with a connected Instagram Professional account
+    let igAccount = null;
+    let connectedPageId = null;
+
+    for (const page of pages) {
+      if (page.instagram_business_account) {
+        igAccount = page.instagram_business_account;
+        connectedPageId = page.id;
+        break;
+      }
+    }
 
     if (!igAccount || !igAccount.id) {
-      throw new Error('No connected Instagram account found in response.');
+      throw new Error('No connected Instagram Professional account found on the authorized Facebook Pages.');
     }
 
     return {
       platformAccountId: igAccount.id,
       username: igAccount.username || `ig_${igAccount.id}`,
-      // profile_picture_url is not returned by the API, so we provide a default avatar
-      profilePictureUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=150',
-      metadata: { source: 'instagram_login', accountType: igAccount.account_type },
+      profilePictureUrl: igAccount.profile_picture_url || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=150',
+      metadata: { source: 'facebook_login_for_business', facebookPageId: connectedPageId },
     };
   }
 }
